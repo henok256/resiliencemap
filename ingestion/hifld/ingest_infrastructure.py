@@ -29,15 +29,15 @@ logger = logging.getLogger(__name__)
 
 # HIFLD ArcGIS REST endpoints
 HIFLD_HOSPITALS_URL = (
-    "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services"
-    "/Hospitals_1/FeatureServer/0/query"
+    "https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services"
+    "/Hospitals2/FeatureServer/0/query"
 )
 HIFLD_SCHOOLS_URL = (
-    "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services"
-    "/Public_Schools/FeatureServer/0/query"
+    "https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services"
+    "/Public_Schools/FeatureServer/3/query"
 )
 HIFLD_POWER_PLANTS_URL = (
-    "https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services"
+    "https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services"
     "/Power_Plants/FeatureServer/0/query"
 )
 
@@ -149,7 +149,7 @@ def fetch_schools() -> list[dict]:
     """Fetch public school facilities from HIFLD."""
     return _fetch_paginated(
         HIFLD_SCHOOLS_URL,
-        "OBJECTID,NAME,ADDRESS,CITY,STATE,COUNTYFIPS,ENROLLMENT,STATUS,LATITUDE,LONGITUDE",
+        "FID,NAME,ADDRESS,CITY,STATE,COUNTYFIPS,ENROLLMENT,STATUS,LATITUDE,LONGITUDE",
         "school",
     )
 
@@ -321,7 +321,7 @@ def run_ingestion(facility_types: list[str] | None = None) -> None:
 
         if "school" in facility_types:
             features = fetch_schools()
-            ins, upd = upsert_infrastructure(features, "school", "OBJECTID", "ENROLLMENT", db)
+            ins, upd = upsert_infrastructure(features, "school", "FID", "ENROLLMENT", db)
             total_ins += ins
             total_upd += upd
 

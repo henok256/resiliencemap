@@ -362,7 +362,7 @@
 const NOAA_API  = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert';
 const USGS_API  = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.5&orderby=time&limit=200&minlatitude=17&maxlatitude=72&minlongitude=-180&maxlongitude=-65';
 const NIFC_API  = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,poly_GISAcres,attr_PercentContained,attr_FireCause,attr_FireDiscoveryDateTime&outSR=4326&f=geojson&resultRecordCount=500';
-const HIFLD_API = 'https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Hospitals_1/FeatureServer/0/query?where=1%3D1&outFields=ID,NAME,ADDRESS,CITY,STATE,BEDS,STATUS,LATITUDE,LONGITUDE&outSR=4326&f=geojson&resultRecordCount=2000';
+const HIFLD_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&outFields=ID,NAME,ADDRESS,CITY,STATE,BEDS,STATUS,LATITUDE,LONGITUDE&outSR=4326&f=geojson&resultRecordCount=2000';
 
 // Leaflet map
 const map = L.map('map', { center: [39.5, -98.35], zoom: 4 });
@@ -431,14 +431,12 @@ async function loadAlerts() {
     });
 
     document.getElementById('cntAlerts').textContent = features.length;
-    document.getElementById('cntSevere').textContent = severe;
-    renderAlertsList(listItems);
+        renderAlertsList(listItems);
 
   } catch(e) {
     console.warn('NOAA fetch failed:', e);
     document.getElementById('cntAlerts').textContent = '—';
-    document.getElementById('cntSevere').textContent = '—';
-    renderAlertsList([]);
+        renderAlertsList([]);
   }
 }
 
