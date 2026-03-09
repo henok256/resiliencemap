@@ -220,12 +220,10 @@ def upsert_alerts(features: list[dict], db: Session) -> tuple[int, int]:
     db.commit()
 
     # Clean up expired alerts older than 48 hours
-    deleted = db.execute(
-        text("""
+    deleted = db.execute(text("""
             DELETE FROM storm_alerts
             WHERE expires < NOW() - INTERVAL '48 hours'
-        """)
-    ).rowcount
+        """)).rowcount
     db.commit()
 
     if deleted:
