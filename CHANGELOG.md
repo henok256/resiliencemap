@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.0] — Phase 3 — 2025
+
+### Added
+- **Census TIGER/Line tract boundary ingestion** (`ingestion/census/ingest_tracts.py`)
+  - Downloads state shapefiles from Census Bureau, reprojects to EPSG:4326
+  - ON CONFLICT upsert — safe to re-run; supports all 50 states + DC
+- **CDC/ATSDR Social Vulnerability Index ingestion** (`ingestion/census/ingest_svi.py`)
+  - Downloads 2022 national SVI CSV, loads into `svi_scores` table
+  - Backfills real SVI scores replacing Phase 1/2 placeholder (0.5)
+- **GitHub Pages live dashboard** (`docs/index.html`)
+  - Fully static — fetches NOAA & USGS APIs directly, no backend needed
+  - Live at: https://henok256.github.io/resiliencemap
+  - FEMA flood zones via WMS tile service; auto-refresh every 5 minutes
+- **Technical blog post** (`docs/blog_post.md`) with academic citations for SSRN/Medium
+- **PyPI-ready metadata** — updated `pyproject.toml` with project URLs and classifiers
+- Version bumped to 0.3.0
+
 ## [0.2.0] — Phase 2 — 2025
 
 ### Added

@@ -25,6 +25,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from ingestion.noaa.ingest_alerts import run_ingestion as run_noaa
 from ingestion.usgs.ingest_earthquakes import run_ingestion as run_usgs
+from ingestion.census.ingest_svi import run_ingestion as run_svi
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +45,12 @@ def job_usgs_earthquakes() -> None:
     """Every 6 hours: ingest recent USGS earthquakes (last 30 days, M2.5+)."""
     logger.info("=== SCHEDULED JOB: USGS earthquake ingestion ===")
     run_usgs(days_back=30, min_magnitude=2.5)
+
+
+def job_svi_refresh() -> None:
+    """Weekly: refresh CDC SVI scores (published annually, weekly check is sufficient)."""
+    logger.info("=== SCHEDULED JOB: CDC SVI refresh ===")
+    run_svi()
 
 
 def on_job_event(event: JobExecutionEvent) -> None:
@@ -75,6 +82,16 @@ def main() -> None:
         name="USGS Earthquake Ingestion",
         replace_existing=True,
         misfire_grace_time=600,
+    )
+
+    # CDC SVI: weekly (data published annually, weekly check is sufficient)
+    scheduler.add_job(
+        job_svi_refresh,
+        trigger=CronTrigger(day_of_week="sun", hour=3),
+        id="cdc_svi",
+        name="CDC SVI Refresh",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
 
     logger.info("ResilienceMap scheduler started. Jobs registered:")

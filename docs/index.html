@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResilienceMap — US Disaster Risk Intelligence</title>
+  <meta name="description" content="Open-source US disaster risk intelligence platform. Live FEMA flood zones, USGS earthquakes, and NOAA storm alerts for every municipality." />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #1a1d2e;
+      border-bottom: 1px solid #2d3748;
+      padding: 0 20px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .brand-icon {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg,#3b82f6,#06b6d4);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+
+    .brand-name {
+      font-size: 17px; font-weight: 700;
+      background: linear-gradient(135deg,#3b82f6,#06b6d4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .header-meta { display: flex; align-items: center; gap: 12px; }
+
+    .live-badge {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3);
+      border-radius: 20px; padding: 3px 10px; font-size: 11px;
+      color: #10b981; font-weight: 600;
+    }
+
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #10b981; animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .gh-link {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: #64748b; text-decoration: none;
+      border: 1px solid #2d3748; border-radius: 6px; padding: 4px 10px;
+      transition: border-color .2s;
+    }
+    .gh-link:hover { border-color: #3b82f6; color: #94a3b8; }
+
+    .updated { font-size: 11px; color: #475569; }
+
+    /* ── Layout ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 280px; background: #1a1d2e;
+      border-right: 1px solid #2d3748;
+      display: flex; flex-direction: column;
+      overflow-y: auto; flex-shrink: 0;
+    }
+
+    .section { padding: 14px; border-bottom: 1px solid #2d3748; }
+
+    .section-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: #475569; margin-bottom: 10px;
+    }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+
+    .stat {
+      background: #0f1117; border: 1px solid #1e293b;
+      border-radius: 8px; padding: 9px;
+    }
+
+    .stat-val { font-size: 20px; font-weight: 700; line-height: 1; }
+    .stat-lbl { font-size: 10px; color: #475569; margin-top: 3px; text-transform: uppercase; }
+
+    /* Layer toggles */
+    .layer-row {
+      display: flex; align-items: center;
+      justify-content: space-between; padding: 7px 0;
+    }
+
+    .layer-left { display: flex; align-items: center; gap: 8px; }
+
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+    .layer-name { font-size: 12px; color: #cbd5e1; }
+
+    .toggle { position: relative; width: 34px; height: 18px; }
+    .toggle input { display: none; }
+    .slider {
+      position: absolute; inset: 0; background: #2d3748;
+      border-radius: 18px; cursor: pointer; transition: .2s;
+    }
+    .slider::before {
+      content: ""; position: absolute;
+      width: 12px; height: 12px; left: 3px; top: 3px;
+      background: white; border-radius: 50%; transition: .2s;
+    }
+    .toggle input:checked + .slider { background: #3b82f6; }
+    .toggle input:checked + .slider::before { transform: translateX(16px); }
+
+    /* Legend */
+    .legend-bar {
+      height: 7px; border-radius: 4px;
+      background: linear-gradient(to right,#22c55e,#eab308,#ef4444);
+      margin: 7px 0;
+    }
+    .legend-labels {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: #475569;
+    }
+
+    /* Alert list */
+    .alert-item {
+      background: #0f1117; border: 1px solid #1e293b;
+      border-radius: 7px; padding: 9px; margin-bottom: 5px;
+      cursor: pointer; transition: border-color .15s;
+    }
+    .alert-item:hover { border-color: #3b82f6; }
+
+    .alert-top {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 3px;
+    }
+
+    .alert-event { font-size: 11px; font-weight: 600; color: #e2e8f0; }
+
+    .badge {
+      font-size: 9px; font-weight: 700; padding: 1px 5px;
+      border-radius: 3px; text-transform: uppercase;
+    }
+    .extreme  { background:rgba(239,68,68,.2);  color:#ef4444; }
+    .severe   { background:rgba(249,115,22,.2); color:#f97316; }
+    .moderate { background:rgba(234,179,8,.2);  color:#eab308; }
+    .minor    { background:rgba(148,163,184,.2);color:#94a3b8; }
+
+    .alert-hl {
+      font-size: 10px; color: #64748b; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* ── Map ── */
+    #map { flex: 1; }
+
+    .leaflet-container { background: #1a1d2e; }
+    .leaflet-tile-pane { filter: brightness(.65) saturate(.75); }
+
+    .leaflet-popup-content-wrapper {
+      background: #1a1d2e; border: 1px solid #2d3748;
+      color: #e2e8f0; border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .leaflet-popup-tip { background: #1a1d2e; }
+
+    .ptitle { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+    .prow {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: #94a3b8; margin-bottom: 2px;
+    }
+    .pval { color: #e2e8f0; font-weight: 500; }
+    .psrc { margin-top: 6px; font-size: 10px; color: #475569; }
+
+    /* Loading */
+    #loading {
+      position: absolute; inset: 0;
+      background: rgba(15,17,23,.88);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999; gap: 12px;
+    }
+    .spin {
+      width: 38px; height: 38px;
+      border: 3px solid #1e293b; border-top-color: #3b82f6;
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { font-size: 13px; color: #64748b; }
+
+    /* Data source bar */
+    .sources {
+      background: #0f1117; border-top: 1px solid #1e293b;
+      padding: 5px 14px; font-size: 10px; color: #334155;
+      display: flex; gap: 14px; flex-shrink: 0;
+    }
+    .sources span { color: #475569; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">🛰️</div>
+    <div>
+      <span class="brand-name">ResilienceMap</span>
+      <span style="font-size:11px;color:#475569;margin-left:4px">US Disaster Risk Intelligence</span>
+    </div>
+  </div>
+  <div class="header-meta">
+    <span class="updated" id="updatedAt">Fetching live data...</span>
+    <a class="gh-link" href="https://github.com/henok256/resiliencemap" target="_blank">
+      ⭐ GitHub
+    </a>
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="sidebar">
+
+    <div class="section">
+      <div class="section-title">Live Overview</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-val" id="cntAlerts" style="color:#ef4444">—</div>
+          <div class="stat-lbl">Storm Alerts</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="cntQuakes" style="color:#f97316">—</div>
+          <div class="stat-lbl">Earthquakes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="cntExtreme" style="color:#a855f7">—</div>
+          <div class="stat-lbl">Extreme</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="cntSevere" style="color:#eab308">—</div>
+          <div class="stat-lbl">Severe</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Map Layers</div>
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot" style="background:#ef4444"></div>
+          <span class="layer-name">Storm Alerts</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked onchange="toggleLayer('alerts',this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot" style="background:#f97316"></div>
+          <span class="layer-name">Earthquakes (30d)</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked onchange="toggleLayer('quakes',this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot" style="background:#3b82f6"></div>
+          <span class="layer-name">FEMA Flood Zones</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked onchange="toggleLayer('flood',this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Risk Score Scale</div>
+      <div class="legend-bar"></div>
+      <div class="legend-labels">
+        <span>Low 0.0</span><span>Med 0.5</span><span>High 1.0</span>
+      </div>
+    </div>
+
+    <div class="section" style="flex:1">
+      <div class="section-title">Active Storm Alerts</div>
+      <div id="alertsList"><p style="font-size:11px;color:#475569">Loading...</p></div>
+    </div>
+
+  </aside>
+
+  <div style="position:relative;flex:1;display:flex;flex-direction:column">
+    <div id="loading">
+      <div class="spin"></div>
+      <p>Fetching live NOAA & USGS data...</p>
+    </div>
+    <div id="map" style="flex:1"></div>
+  </div>
+</div>
+
+<div class="sources">
+  Data sources:
+  <span>🌊 FEMA NFHL</span>
+  <span>🌍 USGS Earthquake Catalog</span>
+  <span>⛈️ NOAA NWS</span>
+  <span>📊 US Census TIGER/Line</span>
+  <span>🔬 CDC/ATSDR SVI</span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  ResilienceMap — GitHub Pages Live Dashboard
+//  Fetches directly from public NOAA & USGS APIs
+//  No backend required for this static build
+// ─────────────────────────────────────────────
+
+const NOAA_API  = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert';
+const USGS_API  = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.5&orderby=time&limit=200&minlatitude=17&maxlatitude=72&minlongitude=-180&maxlongitude=-65';
+
+// Leaflet map
+const map = L.map('map', { center: [39.5, -98.35], zoom: 4 });
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  subdomains: 'abcd', maxZoom: 19,
+}).addTo(map);
+
+const layers = {
+  alerts: L.layerGroup().addTo(map),
+  quakes: L.layerGroup().addTo(map),
+  flood:  L.layerGroup().addTo(map),
+};
+
+function toggleLayer(name, on) {
+  on ? layers[name].addTo(map) : map.removeLayer(layers[name]);
+}
+
+// ── Color helpers ──
+const sevColor = s => ({ Extreme:'#ef4444', Severe:'#f97316', Moderate:'#eab308', Minor:'#94a3b8' }[s] || '#64748b');
+const magR = m => Math.max(5, m * 3.8);
+
+// ── NOAA Storm Alerts ──
+async function loadAlerts() {
+  try {
+    const r = await fetch(NOAA_API, { headers: { 'User-Agent': 'ResilienceMap/0.3 github.com/henok256/resiliencemap' } });
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const features = data.features || [];
+
+    layers.alerts.clearLayers();
+
+    let extreme = 0, severe = 0;
+    const listItems = [];
+
+    features.forEach(f => {
+      const p = f.properties;
+      const sev = p.severity || 'Unknown';
+      if (sev === 'Extreme') extreme++;
+      if (sev === 'Severe') severe++;
+
+      const color = sevColor(sev);
+      listItems.push({ event: p.event, severity: sev, headline: p.headline });
+
+      // Render geometry if present
+      if (f.geometry) {
+        try {
+          const layer = L.geoJSON(f.geometry, {
+            style: { fillColor: color, color, weight: 1.5, opacity: .8, fillOpacity: .25 },
+            pointToLayer: (_, ll) => L.circleMarker(ll, { radius: 10, fillColor: color, color, weight: 2, fillOpacity: .4 }),
+          });
+          layer.bindPopup(`
+            <div class="ptitle">⚠️ ${p.event || 'Alert'}</div>
+            <div class="prow"><span>Severity</span><span class="pval">${sev}</span></div>
+            <div class="prow"><span>Certainty</span><span class="pval">${p.certainty || '—'}</span></div>
+            <div class="prow"><span>Expires</span><span class="pval">${p.expires ? new Date(p.expires).toLocaleString() : '—'}</span></div>
+            <div style="margin-top:6px;font-size:11px;color:#94a3b8">${(p.headline||'').slice(0,120)}</div>
+            <div class="psrc">Source: NOAA NWS</div>
+          `);
+          layers.alerts.addLayer(layer);
+        } catch(_) {}
+      }
+    });
+
+    document.getElementById('cntAlerts').textContent  = features.length;
+    document.getElementById('cntExtreme').textContent = extreme;
+    document.getElementById('cntSevere').textContent  = severe;
+    renderAlertsList(listItems);
+
+  } catch(e) {
+    console.warn('NOAA fetch failed:', e);
+    document.getElementById('cntAlerts').textContent = 'err';
+  }
+}
+
+function renderAlertsList(items) {
+  const order = { Extreme:0, Severe:1, Moderate:2, Minor:3 };
+  const sorted = [...items].sort((a,b) => (order[a.severity]??9) - (order[b.severity]??9));
+  const el = document.getElementById('alertsList');
+  if (!sorted.length) { el.innerHTML = '<p style="font-size:11px;color:#475569">No active alerts</p>'; return; }
+  el.innerHTML = sorted.slice(0,12).map(a => `
+    <div class="alert-item">
+      <div class="alert-top">
+        <span class="alert-event">${a.event||'Alert'}</span>
+        <span class="badge ${(a.severity||'minor').toLowerCase()}">${a.severity||'?'}</span>
+      </div>
+      <div class="alert-hl">${a.headline||'No details available'}</div>
+    </div>
+  `).join('') + (sorted.length > 12 ? `<p style="font-size:10px;color:#475569;text-align:center;padding:6px">+${sorted.length-12} more</p>` : '');
+}
+
+// ── USGS Earthquakes ──
+async function loadQuakes() {
+  try {
+    const r = await fetch(USGS_API);
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const features = data.features || [];
+
+    layers.quakes.clearLayers();
+    document.getElementById('cntQuakes').textContent = features.length;
+
+    features.forEach(f => {
+      const [lon, lat, depth] = f.geometry.coordinates;
+      const p = f.properties;
+      const mag = p.mag || 2.5;
+
+      L.circleMarker([lat, lon], {
+        radius: magR(mag),
+        fillColor: '#f97316', color: '#fed7aa',
+        weight: 1, opacity: .9, fillOpacity: .55,
+      })
+      .bindPopup(`
+        <div class="ptitle">🌍 Earthquake M${mag.toFixed(1)}</div>
+        <div class="prow"><span>Location</span><span class="pval">${p.place||'Unknown'}</span></div>
+        <div class="prow"><span>Depth</span><span class="pval">${depth ? depth.toFixed(1)+'km' : '—'}</span></div>
+        <div class="prow"><span>Time</span><span class="pval">${new Date(p.time).toLocaleString()}</span></div>
+        <div class="psrc">Source: USGS FDSN</div>
+      `)
+      .addTo(layers.quakes);
+    });
+
+  } catch(e) {
+    console.warn('USGS fetch failed:', e);
+    document.getElementById('cntQuakes').textContent = 'err';
+  }
+}
+
+// ── FEMA Flood Zones (sample — WMS tiles) ──
+// For the static GitHub Pages build we use FEMA's public WMS tile service
+// which requires no API key and renders flood zones at zoom 10+
+function loadFloodLayer() {
+  const femaWMS = L.tileLayer.wms(
+    'https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/WMSServer',
+    {
+      layers: '28',          // S_FLD_HAZ_AR — flood hazard zones
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.45,
+      attribution: 'FEMA NFHL',
+      maxZoom: 20,
+    }
+  );
+  layers.flood.addLayer(femaWMS);
+}
+
+// ── Bootstrap ──
+async function init() {
+  loadFloodLayer();
+  await Promise.all([loadAlerts(), loadQuakes()]);
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('updatedAt').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+// Auto-refresh every 5 minutes
+setInterval(async () => {
+  await Promise.all([loadAlerts(), loadQuakes()]);
+  document.getElementById('updatedAt').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}, 5 * 60 * 1000);
+
+init();
+</script>
+</body>
+</html>

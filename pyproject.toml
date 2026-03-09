@@ -4,20 +4,32 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "resiliencemap"
-version = "0.1.0"
-description = "Open-source community disaster risk intelligence platform"
+version = "0.3.0"
+description = "Open-source US disaster risk intelligence platform — FEMA, USGS, NOAA & Census data"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Henok Haile" }]
 requires-python = ">=3.11"
-keywords = ["disaster", "resilience", "geospatial", "gis", "infrastructure", "early-warning"]
+keywords = [
+  "disaster", "resilience", "geospatial", "gis", "infrastructure",
+  "early-warning", "fema", "usgs", "noaa", "census", "postgis", "fastapi"
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Information Analysis",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
+
+[project.urls]
+Homepage = "https://henok256.github.io/resiliencemap"
+Repository = "https://github.com/henok256/resiliencemap"
+Documentation = "https://github.com/henok256/resiliencemap/blob/main/docs/methodology.md"
+"Bug Tracker" = "https://github.com/henok256/resiliencemap/issues"
 
 dependencies = [
     # Web framework
