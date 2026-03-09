@@ -65,6 +65,34 @@ class AtRiskInfrastructureResponse(BaseModel):
     tract_geoid: str
 
 
+class DisasterDeclarationResponse(BaseModel):
+    disaster_number: int
+    fema_id: str
+    state: str
+    county_fips: str | None
+    declaration_type: str
+    incident_type: str
+    declaration_title: str | None
+    declaration_date: datetime
+    incident_begin_date: datetime | None
+    incident_end_date: datetime | None
+    designated_area: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class DisasterTrendResponse(BaseModel):
+    year: int
+    count: int
+    incident_type: str | None = None
+
+
+class StateTrendResponse(BaseModel):
+    state: str
+    total: int
+    trend: list[DisasterTrendResponse]
+
+
 class GeoJSONFeature(BaseModel):
     type: str = "Feature"
     geometry: dict[str, Any]

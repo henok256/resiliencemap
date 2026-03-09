@@ -104,6 +104,28 @@ class WildfireIncident(Base):
     __table_args__ = (Index("idx_wildfire_geom", "geom", postgresql_using="gist"),)
 
 
+class DisasterDeclaration(Base):
+    """FEMA disaster declarations — historical record going back 20+ years."""
+
+    __tablename__ = "disaster_declarations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    disaster_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    fema_id: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+    state: Mapped[str] = mapped_column(String(2), nullable=False, index=True)
+    state_fips: Mapped[str | None] = mapped_column(String(2), index=True)
+    county_fips: Mapped[str | None] = mapped_column(String(5), index=True)
+    declaration_type: Mapped[str] = mapped_column(String(2), nullable=False)
+    incident_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    declaration_title: Mapped[str | None] = mapped_column(String(255))
+    declaration_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    incident_begin_date: Mapped[datetime | None] = mapped_column(DateTime)
+    incident_end_date: Mapped[datetime | None] = mapped_column(DateTime)
+    designated_area: Mapped[str | None] = mapped_column(String(255))
+    fema_region: Mapped[int | None] = mapped_column(Integer)
+    ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class RiskScore(Base):
     """Computed composite risk score per census tract."""
 

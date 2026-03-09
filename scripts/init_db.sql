@@ -103,6 +103,30 @@ CREATE INDEX IF NOT EXISTS idx_infra_geom     ON critical_infrastructure USING G
 CREATE INDEX IF NOT EXISTS idx_infra_state    ON critical_infrastructure(state_fips);
 CREATE INDEX IF NOT EXISTS idx_infra_type     ON critical_infrastructure(facility_type);
 
+-- FEMA disaster declarations (historical, 20+ years)
+CREATE TABLE IF NOT EXISTS disaster_declarations (
+    id                  SERIAL PRIMARY KEY,
+    disaster_number     INTEGER NOT NULL,
+    fema_id             VARCHAR(30) NOT NULL UNIQUE,
+    state               CHAR(2) NOT NULL,
+    state_fips          CHAR(2),
+    county_fips         CHAR(5),
+    declaration_type    VARCHAR(2) NOT NULL,
+    incident_type       VARCHAR(50) NOT NULL,
+    declaration_title   VARCHAR(255),
+    declaration_date    TIMESTAMP NOT NULL,
+    incident_begin_date TIMESTAMP,
+    incident_end_date   TIMESTAMP,
+    designated_area     VARCHAR(255),
+    fema_region         INTEGER,
+    ingested_at         TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_disaster_state  ON disaster_declarations(state);
+CREATE INDEX IF NOT EXISTS idx_disaster_fips   ON disaster_declarations(county_fips);
+CREATE INDEX IF NOT EXISTS idx_disaster_date   ON disaster_declarations(declaration_date);
+CREATE INDEX IF NOT EXISTS idx_disaster_type   ON disaster_declarations(incident_type);
+CREATE INDEX IF NOT EXISTS idx_disaster_year   ON disaster_declarations(EXTRACT(YEAR FROM declaration_date));
+
 -- Risk scores (one row per tract, updated on each scoring run)
 CREATE TABLE IF NOT EXISTS risk_scores (
     id                        SERIAL PRIMARY KEY,

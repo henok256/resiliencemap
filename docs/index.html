@@ -8,6 +8,7 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -210,6 +211,25 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     #loading p { font-size: 13px; color: #64748b; }
 
+    /* ── Charts panel ── */
+    .chart-panel {
+      background: #1a1d2e; border-top: 1px solid #2d3748;
+      height: 220px; flex-shrink: 0;
+      display: flex; gap: 0; overflow: hidden;
+    }
+    .chart-box {
+      flex: 1; padding: 12px 16px;
+      border-right: 1px solid #2d3748;
+      display: flex; flex-direction: column;
+    }
+    .chart-box:last-child { border-right: none; }
+    .chart-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: #475569; margin-bottom: 8px;
+    }
+    .chart-wrap { flex: 1; position: relative; }
+    .chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
     /* Data source bar */
     .sources {
       background: #0f1117; border-top: 1px solid #1e293b;
@@ -338,11 +358,26 @@
       <p>Fetching live NOAA & USGS data...</p>
     </div>
     <div id="map" style="flex:1"></div>
+    <div class="chart-panel">
+      <div class="chart-box">
+        <div class="chart-title">Disaster Declarations by Year (FEMA)</div>
+        <div class="chart-wrap"><canvas id="chartYearly"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Disasters by Type (2000–Present)</div>
+        <div class="chart-wrap"><canvas id="chartByType"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Top 10 States by Disasters</div>
+        <div class="chart-wrap"><canvas id="chartStates"></canvas></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="sources">
   Data sources:
+  <span>📋 FEMA Disaster Declarations</span>
   <span>🌊 FEMA NFHL</span>
   <span>🌍 USGS Earthquake Catalog</span>
   <span>⛈️ NOAA NWS</span>
@@ -363,6 +398,7 @@ const NOAA_API  = 'https://api.weather.gov/alerts/active?status=actual&message_t
 const USGS_API  = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.5&orderby=time&limit=200&minlatitude=17&maxlatitude=72&minlongitude=-180&maxlongitude=-65';
 const NIFC_API  = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,poly_GISAcres,attr_PercentContained,attr_FireCause,attr_FireDiscoveryDateTime&outSR=4326&f=geojson&resultRecordCount=500';
 const HIFLD_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&outFields=ID,NAME,ADDRESS,CITY,STATE,BEDS,STATUS,LATITUDE,LONGITUDE&outSR=4326&f=geojson&resultRecordCount=2000';
+const FEMA_API  = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries';
 
 // Leaflet map
 const map = L.map('map', { center: [39.5, -98.35], zoom: 4 });
@@ -569,6 +605,173 @@ async function loadInfrastructure() {
   }
 }
 
+// ── FEMA Disaster Declarations (Historical Timeline) ──
+const chartDefaults = {
+  color: '#94a3b8',
+  borderColor: '#2d3748',
+  font: { family: '-apple-system, BlinkMacSystemFont, sans-serif' },
+};
+Chart.defaults.color = chartDefaults.color;
+Chart.defaults.borderColor = chartDefaults.borderColor;
+Chart.defaults.font.family = chartDefaults.font.family;
+
+async function fetchFemaDeclarations() {
+  // Fetch all declarations since 2000 (paginated)
+  let all = [];
+  let skip = 0;
+  const top = 1000;
+  const filter = "declarationDate ge '2000-01-01T00:00:00.000Z'";
+
+  try {
+    // First call with count
+    const url1 = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=0&$count=true&$select=disasterNumber,state,declarationType,incidentType,declarationDate&$orderby=declarationDate desc`;
+    const r1 = await fetch(url1);
+    if (!r1.ok) throw new Error(r1.status);
+    const d1 = await r1.json();
+    const total = d1.metadata?.count || 0;
+    all = d1.DisasterDeclarationsSummaries || [];
+    skip = all.length;
+
+    // Paginate remaining
+    while (skip < total) {
+      const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=disasterNumber,state,declarationType,incidentType,declarationDate&$orderby=declarationDate desc`;
+      const r = await fetch(url);
+      if (!r.ok) break;
+      const d = await r.json();
+      const recs = d.DisasterDeclarationsSummaries || [];
+      if (!recs.length) break;
+      all.push(...recs);
+      skip += recs.length;
+    }
+
+    console.log(`Fetched ${all.length} FEMA declarations`);
+    return all;
+  } catch(e) {
+    console.warn('FEMA API failed:', e);
+    return [];
+  }
+}
+
+function renderYearlyChart(records) {
+  // Count unique disasters per year
+  const yearMap = {};
+  const seen = new Set();
+  records.forEach(r => {
+    const key = `${r.disasterNumber}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const yr = new Date(r.declarationDate).getFullYear();
+    yearMap[yr] = (yearMap[yr] || 0) + 1;
+  });
+
+  const years = Object.keys(yearMap).sort();
+  const counts = years.map(y => yearMap[y]);
+
+  new Chart(document.getElementById('chartYearly'), {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [{
+        label: 'Declarations',
+        data: counts,
+        backgroundColor: counts.map(c => c > 100 ? '#ef4444' : c > 60 ? '#f97316' : '#3b82f6'),
+        borderRadius: 3,
+        barPercentage: 0.8,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+        y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 } } },
+      },
+    },
+  });
+}
+
+function renderTypeChart(records) {
+  // Count unique disasters per type
+  const typeMap = {};
+  const seen = new Set();
+  records.forEach(r => {
+    const key = `${r.disasterNumber}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const t = r.incidentType || 'Other';
+    typeMap[t] = (typeMap[t] || 0) + 1;
+  });
+
+  const sorted = Object.entries(typeMap).sort((a,b) => b[1] - a[1]).slice(0, 8);
+  const colors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
+
+  new Chart(document.getElementById('chartByType'), {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(s => s[0]),
+      datasets: [{
+        data: sorted.map(s => s[1]),
+        backgroundColor: colors,
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
+      },
+    },
+  });
+}
+
+function renderStatesChart(records) {
+  // Count unique disasters per state
+  const stateMap = {};
+  const seen = new Set();
+  records.forEach(r => {
+    const key = `${r.disasterNumber}-${r.state}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    stateMap[r.state] = (stateMap[r.state] || 0) + 1;
+  });
+
+  const sorted = Object.entries(stateMap).sort((a,b) => b[1] - a[1]).slice(0, 10);
+
+  new Chart(document.getElementById('chartStates'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(s => s[0]),
+      datasets: [{
+        label: 'Declarations',
+        data: sorted.map(s => s[1]),
+        backgroundColor: '#8b5cf6',
+        borderRadius: 3,
+        barPercentage: 0.7,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      },
+    },
+  });
+}
+
+async function loadDisasterTimeline() {
+  const records = await fetchFemaDeclarations();
+  if (!records.length) return;
+  renderYearlyChart(records);
+  renderTypeChart(records);
+  renderStatesChart(records);
+}
+
 // ── FEMA Flood Zones (sample — WMS tiles) ──
 // For the static GitHub Pages build we use FEMA's public WMS tile service
 // which requires no API key and renders flood zones at zoom 10+
@@ -593,6 +796,8 @@ async function init() {
   await Promise.all([loadAlerts(), loadQuakes(), loadWildfires(), loadInfrastructure()]);
   document.getElementById('loading').style.display = 'none';
   document.getElementById('updatedAt').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  // Load historical FEMA data (non-blocking — charts render after map)
+  loadDisasterTimeline();
 }
 
 // Auto-refresh every 5 minutes
