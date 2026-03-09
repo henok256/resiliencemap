@@ -961,56 +961,47 @@
 
     async function loadDisasterTimeline() {
       try {
-        let all = [], skip = 0;
-        const top = 1000;
-        const filter = "declarationDate ge '2000-01-01T00:00:00.000Z'";
+        const currentYear = new Date().getFullYear();
+        const startYear = 2000;
+        const promises = [];
 
-        const url1 = `${FEMA_DECL_API}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=0&$count=true&$select=disasterNumber,state,incidentType,declarationDate&$orderby=declarationDate desc`;
-        const r1 = await fetch(url1);
-        if (!r1.ok) throw new Error(r1.status);
-        const d1 = await r1.json();
-        const total = d1.metadata?.count || 0;
-        all = d1.DisasterDeclarationsSummaries || [];
-        skip = all.length;
-
-        while (skip < total) {
-          const url = `${FEMA_DECL_API}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=disasterNumber,state,incidentType,declarationDate&$orderby=declarationDate desc`;
-          const r = await fetch(url);
-          if (!r.ok) break;
-          const d = await r.json();
-          const recs = d.DisasterDeclarationsSummaries || [];
-          if (!recs.length) break;
-          all.push(...recs);
-          skip += recs.length;
+        for (let yr = startYear; yr <= currentYear; yr++) {
+          const filter = `declarationDate ge '${yr}-01-01T00:00:00.000Z' and declarationDate lt '${yr+1}-01-01T00:00:00.000Z'`;
+          const url = `${FEMA_DECL_API}?$filter=${encodeURIComponent(filter)}&$select=disasterNumber,state,incidentType&$top=10000&$metadata=false`;
+          promises.push(
+            fetch(url).then(r => r.ok ? r.json() : null).then(d => {
+              if (!d) return { year: yr, count: 0, records: [] };
+              const recs = d.DisasterDeclarationsSummaries || [];
+              const unique = new Set(recs.map(r => r.disasterNumber));
+              return { year: yr, count: unique.size, records: recs };
+            }).catch(() => ({ year: yr, count: 0, records: [] }))
+          );
         }
 
-        if (!all.length) return;
+        const yearData = await Promise.all(promises);
+        if (!yearData.length) return;
 
-        // Yearly chart
-        const yearMap = {}, seenY = new Set();
-        all.forEach(r => {
-          if (seenY.has(r.disasterNumber)) return;
-          seenY.add(r.disasterNumber);
-          const yr = new Date(r.declarationDate).getFullYear();
-          yearMap[yr] = (yearMap[yr] || 0) + 1;
-        });
-        const years = Object.keys(yearMap).sort();
+        // Yearly bar chart
+        const years = yearData.map(d => d.year);
+        const counts = yearData.map(d => d.count);
         new Chart(document.getElementById('chartYearly'), {
           type: 'bar',
           data: {
             labels: years,
-            datasets: [{ data: years.map(y => yearMap[y]), backgroundColor: years.map(y => yearMap[y] > 100 ? '#ef4444' : yearMap[y] > 60 ? '#f97316' : '#3b82f6'), borderRadius: 3, barPercentage: 0.8 }],
+            datasets: [{ data: counts, backgroundColor: counts.map(c => c > 100 ? '#ef4444' : c > 60 ? '#f97316' : '#3b82f6'), borderRadius: 3, barPercentage: 0.8 }],
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }, y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 } } } } },
         });
 
-        // By-type chart
+        // Combine all records for type/state charts
+        const all = yearData.flatMap(d => d.records);
+
+        // By-type doughnut
         const typeMap = {}, seenT = new Set();
         all.forEach(r => {
           if (seenT.has(r.disasterNumber)) return;
           seenT.add(r.disasterNumber);
-          const t = r.incidentType || 'Other';
-          typeMap[t] = (typeMap[t] || 0) + 1;
+          typeMap[r.incidentType || 'Other'] = (typeMap[r.incidentType || 'Other'] || 0) + 1;
         });
         const typeSorted = Object.entries(typeMap).sort((a,b) => b[1]-a[1]).slice(0,8);
         const colors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -1020,7 +1011,7 @@
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } } } },
         });
 
-        // Top states chart
+        // Top states horizontal bar
         const stateMap = {}, seenS = new Set();
         all.forEach(r => {
           const key = `${r.disasterNumber}-${r.state}`;

@@ -615,57 +615,32 @@ Chart.defaults.color = chartDefaults.color;
 Chart.defaults.borderColor = chartDefaults.borderColor;
 Chart.defaults.font.family = chartDefaults.font.family;
 
-async function fetchFemaDeclarations() {
-  // Fetch all declarations since 2000 (paginated)
-  let all = [];
-  let skip = 0;
-  const top = 1000;
-  const filter = "declarationDate ge '2000-01-01T00:00:00.000Z'";
+// Fetch FEMA data in parallel year-by-year using $filter + $count
+// Each request returns only the count — no payload, ~200ms each
+async function fetchYearCounts() {
+  const currentYear = new Date().getFullYear();
+  const startYear = 2000;
+  const promises = [];
 
-  try {
-    // First call with count
-    const url1 = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=0&$count=true&$select=disasterNumber,state,declarationType,incidentType,declarationDate&$orderby=declarationDate desc`;
-    const r1 = await fetch(url1);
-    if (!r1.ok) throw new Error(r1.status);
-    const d1 = await r1.json();
-    const total = d1.metadata?.count || 0;
-    all = d1.DisasterDeclarationsSummaries || [];
-    skip = all.length;
-
-    // Paginate remaining
-    while (skip < total) {
-      const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=disasterNumber,state,declarationType,incidentType,declarationDate&$orderby=declarationDate desc`;
-      const r = await fetch(url);
-      if (!r.ok) break;
-      const d = await r.json();
-      const recs = d.DisasterDeclarationsSummaries || [];
-      if (!recs.length) break;
-      all.push(...recs);
-      skip += recs.length;
-    }
-
-    console.log(`Fetched ${all.length} FEMA declarations`);
-    return all;
-  } catch(e) {
-    console.warn('FEMA API failed:', e);
-    return [];
+  for (let yr = startYear; yr <= currentYear; yr++) {
+    const filter = `declarationDate ge '${yr}-01-01T00:00:00.000Z' and declarationDate lt '${yr+1}-01-01T00:00:00.000Z'`;
+    const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$select=disasterNumber&$top=10000&$metadata=false`;
+    promises.push(
+      fetch(url).then(r => r.ok ? r.json() : null).then(d => {
+        if (!d) return { year: yr, count: 0, records: [] };
+        const recs = d.DisasterDeclarationsSummaries || [];
+        const unique = new Set(recs.map(r => r.disasterNumber));
+        return { year: yr, count: unique.size, records: recs };
+      }).catch(() => ({ year: yr, count: 0, records: [] }))
+    );
   }
+
+  return Promise.all(promises);
 }
 
-function renderYearlyChart(records) {
-  // Count unique disasters per year
-  const yearMap = {};
-  const seen = new Set();
-  records.forEach(r => {
-    const key = `${r.disasterNumber}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const yr = new Date(r.declarationDate).getFullYear();
-    yearMap[yr] = (yearMap[yr] || 0) + 1;
-  });
-
-  const years = Object.keys(yearMap).sort();
-  const counts = years.map(y => yearMap[y]);
+function renderYearlyChart(yearData) {
+  const years = yearData.map(d => d.year);
+  const counts = yearData.map(d => d.count);
 
   new Chart(document.getElementById('chartYearly'), {
     type: 'bar',
@@ -691,14 +666,12 @@ function renderYearlyChart(records) {
   });
 }
 
-function renderTypeChart(records) {
-  // Count unique disasters per type
+function renderTypeChart(allRecords) {
   const typeMap = {};
   const seen = new Set();
-  records.forEach(r => {
-    const key = `${r.disasterNumber}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+  allRecords.forEach(r => {
+    if (seen.has(r.disasterNumber)) return;
+    seen.add(r.disasterNumber);
     const t = r.incidentType || 'Other';
     typeMap[t] = (typeMap[t] || 0) + 1;
   });
@@ -726,11 +699,10 @@ function renderTypeChart(records) {
   });
 }
 
-function renderStatesChart(records) {
-  // Count unique disasters per state
+function renderStatesChart(allRecords) {
   const stateMap = {};
   const seen = new Set();
-  records.forEach(r => {
+  allRecords.forEach(r => {
     const key = `${r.disasterNumber}-${r.state}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -765,11 +737,13 @@ function renderStatesChart(records) {
 }
 
 async function loadDisasterTimeline() {
-  const records = await fetchFemaDeclarations();
-  if (!records.length) return;
-  renderYearlyChart(records);
-  renderTypeChart(records);
-  renderStatesChart(records);
+  const yearData = await fetchYearCounts();
+  if (!yearData.length) return;
+  renderYearlyChart(yearData);
+  // Combine all records for type/state charts
+  const allRecords = yearData.flatMap(d => d.records);
+  renderTypeChart(allRecords);
+  renderStatesChart(allRecords);
 }
 
 // ── FEMA Flood Zones (sample — WMS tiles) ──
