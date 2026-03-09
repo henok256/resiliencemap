@@ -624,7 +624,7 @@ async function fetchYearCounts() {
 
   for (let yr = startYear; yr <= currentYear; yr++) {
     const filter = `declarationDate ge '${yr}-01-01T00:00:00.000Z' and declarationDate lt '${yr+1}-01-01T00:00:00.000Z'`;
-    const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$select=disasterNumber&$top=10000&$metadata=false`;
+    const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$select=disasterNumber,state,incidentType&$top=10000&$metadata=false`;
     promises.push(
       fetch(url).then(r => r.ok ? r.json() : null).then(d => {
         if (!d) return { year: yr, count: 0, records: [] };
