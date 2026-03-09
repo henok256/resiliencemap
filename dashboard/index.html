@@ -414,8 +414,8 @@
             <div class="stat-label">Earthquakes</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" id="statFloodZones" style="color:#3b82f6">—</div>
-            <div class="stat-label">Flood Zones</div>
+            <div class="stat-value" id="statWildfires" style="color:#dc2626">—</div>
+            <div class="stat-label">Active Fires</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="statHighRisk" style="color:#a855f7">—</div>
@@ -446,6 +446,17 @@
           </div>
           <label class="toggle">
             <input type="checkbox" id="toggleQuakes" checked onchange="toggleLayer('quakes', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="layer-toggle">
+          <div class="layer-info">
+            <div class="layer-dot" style="background:#dc2626"></div>
+            <span class="layer-label">Wildfires</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggleWildfires" checked onchange="toggleLayer('wildfires', this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -527,10 +538,11 @@
 
     // ── Layer groups ──
     const layers = {
-      alerts: L.layerGroup().addTo(map),
-      quakes: L.layerGroup().addTo(map),
-      flood:  L.layerGroup().addTo(map),
-      risk:   L.layerGroup().addTo(map),
+      alerts:    L.layerGroup().addTo(map),
+      quakes:    L.layerGroup().addTo(map),
+      wildfires: L.layerGroup().addTo(map),
+      flood:     L.layerGroup().addTo(map),
+      risk:      L.layerGroup().addTo(map),
     };
 
     function toggleLayer(name, visible) {
@@ -724,6 +736,50 @@
       });
     }
 
+    // ── Fetch & render wildfires ──
+    async function loadWildfires() {
+      try {
+        const res = await fetch(`${API}/hazards/geojson?layer=wildfire`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        layers.wildfires.clearLayers();
+        document.getElementById('statWildfires').textContent = data.features.length;
+
+        data.features.forEach(f => {
+          const props = f.properties;
+          const acres = props.acres_burned || 0;
+          const contained = props.percent_contained || 0;
+          const color = contained >= 90 ? '#fcd34d' : contained >= 50 ? '#f97316' : '#dc2626';
+
+          const poly = L.geoJSON(f.geometry, {
+            style: {
+              fillColor: color,
+              color: color,
+              weight: 1.5,
+              opacity: 0.9,
+              fillOpacity: 0.4,
+            },
+          });
+
+          poly.bindPopup(`
+            <div class="popup-title">🔥 ${props.incident_name || 'Unknown Fire'}</div>
+            <div class="popup-row"><span>Acres Burned</span><span class="popup-value">${acres.toLocaleString()}</span></div>
+            <div class="popup-row"><span>Contained</span><span class="popup-value">${contained}%</span></div>
+            <div class="popup-row"><span>Cause</span><span class="popup-value">${props.fire_cause || '—'}</span></div>
+            <div class="popup-row"><span>Started</span><span class="popup-value">${props.start_date ? new Date(props.start_date).toLocaleDateString() : '—'}</span></div>
+            <div style="margin-top:6px;font-size:10px;color:#64748b">Source: NIFC</div>
+          `);
+          layers.wildfires.addLayer(poly);
+        });
+
+        return data.features.length;
+      } catch (e) {
+        document.getElementById('statWildfires').textContent = 'N/A';
+        return 0;
+      }
+    }
+
     // ── Fetch & render flood zones ──
     async function loadFloodZones() {
       try {
@@ -805,6 +861,7 @@
       await Promise.all([
         loadAlerts(),
         loadEarthquakes(),
+        loadWildfires(),
         loadFloodZones(),
         loadRiskScores(),
       ]);
@@ -818,6 +875,7 @@
     setInterval(() => {
       loadAlerts();
       loadEarthquakes();
+      loadWildfires();
       document.getElementById('lastUpdated').textContent =
         'Updated ' + new Date().toLocaleTimeString();
     }, 5 * 60 * 1000);

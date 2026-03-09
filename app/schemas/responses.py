@@ -10,6 +10,7 @@ class RiskScoreResponse(BaseModel):
     flood_score: float = Field(ge=0.0, le=1.0)
     seismic_score: float = Field(ge=0.0, le=1.0)
     storm_score: float = Field(ge=0.0, le=1.0)
+    wildfire_score: float = Field(ge=0.0, le=1.0)
     social_vulnerability_score: float = Field(ge=0.0, le=1.0)
     composite_score: float = Field(ge=0.0, le=1.0)
     computed_at: datetime

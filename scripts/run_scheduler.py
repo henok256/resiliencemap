@@ -6,9 +6,10 @@ Runs data ingestion jobs on a schedule using APScheduler.
 Designed to run as a long-lived background process (separate Docker service).
 
 Schedule:
-  - NOAA storm alerts:    every 1 hour  (data changes frequently)
-  - USGS earthquakes:     every 6 hours (new events accumulate)
-  - FEMA flood zones:     every 7 days  (rarely updated)
+  - NOAA storm alerts:    every 1 hour   (data changes frequently)
+  - USGS earthquakes:     every 6 hours  (new events accumulate)
+  - NIFC wildfires:       every 12 hours (perimeters update daily)
+  - FEMA flood zones:     every 7 days   (rarely updated)
 
 Usage:
     python -m scripts.run_scheduler
@@ -23,6 +24,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ingestion.census.ingest_svi import run_ingestion as run_svi
+from ingestion.nifc.ingest_wildfires import run_ingestion as run_wildfires
 from ingestion.noaa.ingest_alerts import run_ingestion as run_noaa
 from ingestion.usgs.ingest_earthquakes import run_ingestion as run_usgs
 
@@ -44,6 +46,12 @@ def job_usgs_earthquakes() -> None:
     """Every 6 hours: ingest recent USGS earthquakes (last 30 days, M2.5+)."""
     logger.info("=== SCHEDULED JOB: USGS earthquake ingestion ===")
     run_usgs(days_back=30, min_magnitude=2.5)
+
+
+def job_wildfire_incidents() -> None:
+    """Every 12 hours: ingest active NIFC wildfire perimeters."""
+    logger.info("=== SCHEDULED JOB: NIFC wildfire ingestion ===")
+    run_wildfires()
 
 
 def job_svi_refresh() -> None:
@@ -83,6 +91,16 @@ def main() -> None:
         misfire_grace_time=600,
     )
 
+    # NIFC Wildfires: every 12 hours (perimeters updated daily)
+    scheduler.add_job(
+        job_wildfire_incidents,
+        trigger=IntervalTrigger(hours=12),
+        id="nifc_wildfires",
+        name="NIFC Wildfire Perimeter Ingestion",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+
     # CDC SVI: weekly (data published annually, weekly check is sufficient)
     scheduler.add_job(
         job_svi_refresh,
@@ -108,6 +126,11 @@ def main() -> None:
         job_usgs_earthquakes()
     except Exception as e:
         logger.error("Initial USGS ingestion failed: %s", e)
+
+    try:
+        job_wildfire_incidents()
+    except Exception as e:
+        logger.error("Initial NIFC wildfire ingestion failed: %s", e)
 
     logger.info("Initial ingestion complete. Scheduler now running...")
     scheduler.start()

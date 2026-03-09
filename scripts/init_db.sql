@@ -64,6 +64,24 @@ CREATE TABLE IF NOT EXISTS storm_alerts (
 CREATE INDEX IF NOT EXISTS idx_storm_alerts_geom    ON storm_alerts USING GIST(geom);
 CREATE INDEX IF NOT EXISTS idx_storm_alerts_expires ON storm_alerts(expires);
 
+-- Wildfire incidents (NIFC active fire perimeters)
+CREATE TABLE IF NOT EXISTS wildfire_incidents (
+    id                SERIAL PRIMARY KEY,
+    irwin_id          VARCHAR(64) NOT NULL UNIQUE,
+    incident_name     VARCHAR(255) NOT NULL,
+    acres_burned      FLOAT,
+    percent_contained FLOAT,
+    state_fips        CHAR(2),
+    fire_cause        VARCHAR(100),
+    start_date        TIMESTAMP,
+    updated_at        TIMESTAMP,
+    geom              GEOMETRY(MULTIPOLYGON, 4326) NOT NULL,
+    ingested_at       TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_wildfire_geom  ON wildfire_incidents USING GIST(geom);
+CREATE INDEX IF NOT EXISTS idx_wildfire_state ON wildfire_incidents(state_fips);
+CREATE INDEX IF NOT EXISTS idx_wildfire_start ON wildfire_incidents(start_date);
+
 -- Risk scores (one row per tract, updated on each scoring run)
 CREATE TABLE IF NOT EXISTS risk_scores (
     id                        SERIAL PRIMARY KEY,
@@ -72,6 +90,7 @@ CREATE TABLE IF NOT EXISTS risk_scores (
     flood_score               FLOAT DEFAULT 0.0,
     seismic_score             FLOAT DEFAULT 0.0,
     storm_score               FLOAT DEFAULT 0.0,
+    wildfire_score            FLOAT DEFAULT 0.0,
     social_vulnerability_score FLOAT DEFAULT 0.0,
     composite_score           FLOAT NOT NULL,
     computed_at               TIMESTAMP DEFAULT NOW(),

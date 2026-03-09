@@ -84,6 +84,26 @@ class StormAlert(Base):
     __table_args__ = (Index("idx_storm_alerts_geom", "geom", postgresql_using="gist"),)
 
 
+class WildfireIncident(Base):
+    """NIFC active wildfire incidents with fire perimeter boundaries."""
+
+    __tablename__ = "wildfire_incidents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    irwin_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    incident_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    acres_burned: Mapped[float | None] = mapped_column(Float)
+    percent_contained: Mapped[float | None] = mapped_column(Float)
+    state_fips: Mapped[str | None] = mapped_column(String(2), index=True)
+    fire_cause: Mapped[str | None] = mapped_column(String(100))
+    start_date: Mapped[datetime | None] = mapped_column(DateTime)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    geom: Mapped[bytes] = mapped_column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)
+    ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index("idx_wildfire_geom", "geom", postgresql_using="gist"),)
+
+
 class RiskScore(Base):
     """Computed composite risk score per census tract."""
 
@@ -97,6 +117,7 @@ class RiskScore(Base):
     flood_score: Mapped[float] = mapped_column(Float, default=0.0)
     seismic_score: Mapped[float] = mapped_column(Float, default=0.0)
     storm_score: Mapped[float] = mapped_column(Float, default=0.0)
+    wildfire_score: Mapped[float] = mapped_column(Float, default=0.0)
     social_vulnerability_score: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Weighted composite (0.0 – 1.0)

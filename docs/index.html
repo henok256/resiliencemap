@@ -253,8 +253,8 @@
           <div class="stat-lbl">Earthquakes</div>
         </div>
         <div class="stat">
-          <div class="stat-val" id="cntExtreme" style="color:#a855f7">—</div>
-          <div class="stat-lbl">Extreme</div>
+          <div class="stat-val" id="cntWildfires" style="color:#dc2626">—</div>
+          <div class="stat-lbl">Active Fires</div>
         </div>
         <div class="stat">
           <div class="stat-val" id="cntSevere" style="color:#eab308">—</div>
@@ -282,6 +282,16 @@
         </div>
         <label class="toggle">
           <input type="checkbox" checked onchange="toggleLayer('quakes',this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot" style="background:#dc2626"></div>
+          <span class="layer-name">Wildfires (NIFC)</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked onchange="toggleLayer('wildfires',this.checked)">
           <span class="slider"></span>
         </label>
       </div>
@@ -326,6 +336,7 @@
   <span>🌊 FEMA NFHL</span>
   <span>🌍 USGS Earthquake Catalog</span>
   <span>⛈️ NOAA NWS</span>
+  <span>🔥 NIFC Wildfire Perimeters</span>
   <span>📊 US Census TIGER/Line</span>
   <span>🔬 CDC/ATSDR SVI</span>
 </div>
@@ -339,6 +350,7 @@
 
 const NOAA_API  = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert';
 const USGS_API  = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.5&orderby=time&limit=200&minlatitude=17&maxlatitude=72&minlongitude=-180&maxlongitude=-65';
+const NIFC_API  = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,poly_GISAcres,attr_PercentContained,attr_FireCause,attr_FireDiscoveryDateTime&outSR=4326&f=geojson&resultRecordCount=500';
 
 // Leaflet map
 const map = L.map('map', { center: [39.5, -98.35], zoom: 4 });
@@ -349,9 +361,10 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 }).addTo(map);
 
 const layers = {
-  alerts: L.layerGroup().addTo(map),
-  quakes: L.layerGroup().addTo(map),
-  flood:  L.layerGroup().addTo(map),
+  alerts:    L.layerGroup().addTo(map),
+  quakes:    L.layerGroup().addTo(map),
+  wildfires: L.layerGroup().addTo(map),
+  flood:     L.layerGroup().addTo(map),
 };
 
 function toggleLayer(name, on) {
@@ -468,6 +481,45 @@ async function loadQuakes() {
   }
 }
 
+// ── NIFC Wildfires ──
+async function loadWildfires() {
+  try {
+    const r = await fetch(NIFC_API);
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const features = data.features || [];
+
+    layers.wildfires.clearLayers();
+    document.getElementById('cntWildfires').textContent = features.length;
+
+    features.forEach(f => {
+      if (!f.geometry) return;
+      const p = f.properties || {};
+      const acres = p.poly_GISAcres || 0;
+      const contained = p.attr_PercentContained || 0;
+      const color = contained >= 90 ? '#fcd34d' : contained >= 50 ? '#f97316' : '#dc2626';
+
+      try {
+        const layer = L.geoJSON(f.geometry, {
+          style: { fillColor: color, color, weight: 1.5, opacity: .9, fillOpacity: .35 },
+        });
+        layer.bindPopup(`
+          <div class="ptitle">🔥 ${p.poly_IncidentName || 'Unknown Fire'}</div>
+          <div class="prow"><span>Acres</span><span class="pval">${Math.round(acres).toLocaleString()}</span></div>
+          <div class="prow"><span>Contained</span><span class="pval">${contained}%</span></div>
+          <div class="prow"><span>Cause</span><span class="pval">${p.attr_FireCause || '—'}</span></div>
+          <div class="psrc">Source: NIFC</div>
+        `);
+        layers.wildfires.addLayer(layer);
+      } catch(_) {}
+    });
+
+  } catch(e) {
+    console.warn('NIFC fetch failed:', e);
+    document.getElementById('cntWildfires').textContent = 'err';
+  }
+}
+
 // ── FEMA Flood Zones (sample — WMS tiles) ──
 // For the static GitHub Pages build we use FEMA's public WMS tile service
 // which requires no API key and renders flood zones at zoom 10+
@@ -489,14 +541,14 @@ function loadFloodLayer() {
 // ── Bootstrap ──
 async function init() {
   loadFloodLayer();
-  await Promise.all([loadAlerts(), loadQuakes()]);
+  await Promise.all([loadAlerts(), loadQuakes(), loadWildfires()]);
   document.getElementById('loading').style.display = 'none';
   document.getElementById('updatedAt').textContent = 'Updated ' + new Date().toLocaleTimeString();
 }
 
 // Auto-refresh every 5 minutes
 setInterval(async () => {
-  await Promise.all([loadAlerts(), loadQuakes()]);
+  await Promise.all([loadAlerts(), loadQuakes(), loadWildfires()]);
   document.getElementById('updatedAt').textContent = 'Updated ' + new Date().toLocaleTimeString();
 }, 5 * 60 * 1000);
 

@@ -3,13 +3,14 @@ Composite Risk Scoring Engine
 ==============================
 
 Computes a composite disaster risk score (0.0 – 1.0) for each US census tract
-by combining flood, seismic, storm, and social vulnerability components.
+by combining flood, seismic, storm, wildfire, and social vulnerability components.
 
 Scoring weights (tunable via config):
-  - Flood risk:               35%  (FEMA SFHA coverage %)
-  - Seismic risk:             25%  (USGS magnitude-weighted proximity)
-  - Storm exposure:           25%  (NOAA active alert recency & severity)
-  - Social vulnerability:     15%  (CDC/ATSDR SVI score)
+  - Flood risk:               30%  (FEMA SFHA coverage %)
+  - Seismic risk:             20%  (USGS magnitude-weighted proximity)
+  - Storm exposure:           20%  (NOAA active alert recency & severity)
+  - Wildfire risk:            20%  (NIFC perimeter proximity & acreage)
+  - Social vulnerability:     10%  (CDC/ATSDR SVI score)
 
 Usage:
     python -m processing.score_tracts --county 48201   # Harris County, TX
@@ -29,10 +30,11 @@ logger = logging.getLogger(__name__)
 
 # Scoring weights — must sum to 1.0
 WEIGHTS = {
-    "flood": 0.35,
-    "seismic": 0.25,
-    "storm": 0.25,
-    "social_vulnerability": 0.15,
+    "flood": 0.30,
+    "seismic": 0.20,
+    "storm": 0.20,
+    "wildfire": 0.20,
+    "social_vulnerability": 0.10,
 }
 
 # Severity multipliers for NOAA storm alerts
@@ -145,6 +147,57 @@ def compute_storm_score(tract_geoid: str, db: Session) -> float:
     return float(min(total / 4.0, 1.0))
 
 
+def compute_wildfire_score(tract_geoid: str, db: Session, days_back: int = 365) -> float:
+    """
+    Compute wildfire risk score based on proximity and size of active
+    wildfire incidents relative to the census tract.
+
+    Score considers:
+      - Direct intersection: tract overlapping an active fire perimeter
+      - Proximity: nearby fires within 100km weighted by acreage and containment
+      - Containment: uncontained fires contribute more than contained ones
+
+    Returns a value between 0.0 (no wildfire risk) and 1.0 (maximum risk).
+    """
+    cutoff = datetime.utcnow() - timedelta(days=days_back)
+
+    result = db.execute(
+        text("""
+            WITH tract_centroid AS (
+                SELECT ST_Centroid(geom) AS pt, geom AS tract_geom
+                FROM census_tracts
+                WHERE geoid = :geoid
+            ),
+            nearby_fires AS (
+                SELECT
+                    wi.acres_burned,
+                    wi.percent_contained,
+                    ST_Intersects(tc.tract_geom, wi.geom) AS overlaps,
+                    ST_Distance(
+                        tc.pt::geography,
+                        ST_Centroid(wi.geom)::geography
+                    ) / 1000.0 AS dist_km
+                FROM wildfire_incidents wi, tract_centroid tc
+                WHERE
+                    wi.start_date >= :cutoff
+                    AND ST_DWithin(tc.pt::geography, wi.geom::geography, 100000)
+            )
+            SELECT COALESCE(SUM(
+                COALESCE(acres_burned, 100.0)
+                * (100.0 - COALESCE(percent_contained, 0)) / 100.0
+                * CASE WHEN overlaps THEN 5.0 ELSE 1.0 END
+                / GREATEST(dist_km, 1.0)
+            ), 0)
+            FROM nearby_fires
+        """),
+        {"geoid": tract_geoid, "cutoff": cutoff},
+    ).scalar()
+
+    raw_score = float(result or 0.0)
+    # Normalize: a large nearby uncontained fire (~10k acres at 10km) ≈ 1.0
+    return float(min(raw_score / 5000.0, 1.0))
+
+
 def compute_social_vulnerability_score(tract_geoid: str, db: Session) -> float:
     """
     Placeholder for CDC/ATSDR Social Vulnerability Index (SVI) score.
@@ -165,6 +218,7 @@ def compute_composite_score(
     flood: float,
     seismic: float,
     storm: float,
+    wildfire: float,
     svi: float,
 ) -> float:
     """
@@ -175,6 +229,7 @@ def compute_composite_score(
         WEIGHTS["flood"] * flood
         + WEIGHTS["seismic"] * seismic
         + WEIGHTS["storm"] * storm
+        + WEIGHTS["wildfire"] * wildfire
         + WEIGHTS["social_vulnerability"] * svi
     )
     return round(min(max(score, 0.0), 1.0), 6)
@@ -207,22 +262,26 @@ def score_county(county_fips: str, db: Session) -> int:
         flood = compute_flood_score(geoid, db)
         seismic = compute_seismic_score(geoid, db)
         storm = compute_storm_score(geoid, db)
+        wildfire = compute_wildfire_score(geoid, db)
         svi = compute_social_vulnerability_score(geoid, db)
-        composite = compute_composite_score(flood, seismic, storm, svi)
+        composite = compute_composite_score(flood, seismic, storm, wildfire, svi)
 
         # Upsert risk score
         db.execute(
             text("""
                 INSERT INTO risk_scores
                     (tract_geoid, county_fips, flood_score, seismic_score,
-                     storm_score, social_vulnerability_score, composite_score, computed_at)
+                     storm_score, wildfire_score, social_vulnerability_score,
+                     composite_score, computed_at)
                 VALUES
-                    (:geoid, :county, :flood, :seismic, :storm, :svi, :composite, NOW())
+                    (:geoid, :county, :flood, :seismic, :storm, :wildfire,
+                     :svi, :composite, NOW())
                 ON CONFLICT (tract_geoid)
                 DO UPDATE SET
                     flood_score = EXCLUDED.flood_score,
                     seismic_score = EXCLUDED.seismic_score,
                     storm_score = EXCLUDED.storm_score,
+                    wildfire_score = EXCLUDED.wildfire_score,
                     social_vulnerability_score = EXCLUDED.social_vulnerability_score,
                     composite_score = EXCLUDED.composite_score,
                     computed_at = EXCLUDED.computed_at
@@ -233,6 +292,7 @@ def score_county(county_fips: str, db: Session) -> int:
                 "flood": flood,
                 "seismic": seismic,
                 "storm": storm,
+                "wildfire": wildfire,
                 "svi": svi,
                 "composite": composite,
             },

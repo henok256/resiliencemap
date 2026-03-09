@@ -70,7 +70,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["app*", "ingestion*", "processing*", "dashboard*"]
+include = ["app*", "dashboard*", "ingestion*", "processing*"]
 
 [tool.ruff]
 line-length = 100
