@@ -326,14 +326,76 @@
       50% { opacity: .6; }
     }
 
+    /* Export toolbar */
+    .export-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 16px; background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0; transition: background .3s, border-color .3s;
+    }
+    .export-bar-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--text-muted); margin-right: auto;
+    }
+    .export-btn {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 5px; padding: 4px 10px; font-size: 11px;
+      color: var(--text-secondary); cursor: pointer;
+      transition: border-color .2s, color .2s, background .2s;
+      font-family: inherit;
+    }
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Population exposure highlight */
+    .exposure-section {
+      background: linear-gradient(135deg, rgba(239,68,68,.08), rgba(249,115,22,.08));
+      border: 1px solid rgba(239,68,68,.2);
+      border-radius: 8px; padding: 10px; margin-top: 8px;
+      text-align: center;
+    }
+    .exposure-val {
+      font-size: 22px; font-weight: 800; color: #ef4444;
+      line-height: 1; margin-bottom: 2px;
+    }
+    .exposure-lbl {
+      font-size: 9px; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    /* Cost stat */
+    .cost-section {
+      background: linear-gradient(135deg, rgba(34,197,94,.08), rgba(59,130,246,.08));
+      border: 1px solid rgba(34,197,94,.2);
+      border-radius: 8px; padding: 10px; margin-top: 6px;
+      text-align: center;
+    }
+    .cost-val {
+      font-size: 20px; font-weight: 800; color: #22c55e;
+      line-height: 1; margin-bottom: 2px;
+    }
+    .cost-lbl {
+      font-size: 9px; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
     /* Data source bar */
     .sources {
       background: var(--bg-primary); border-top: 1px solid var(--border-subtle);
       padding: 5px 14px; font-size: 10px; color: var(--text-dim);
       display: flex; gap: 14px; flex-shrink: 0;
-      transition: background .3s;
+      transition: background .3s; flex-wrap: wrap;
     }
     .sources span { color: var(--text-muted); }
+
+    /* Toast notification */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: white; padding: 8px 20px;
+      border-radius: 8px; font-size: 12px; font-weight: 600;
+      z-index: 10000; opacity: 0; transition: opacity .3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -384,6 +446,14 @@
           <div class="stat-val" id="cntInfra" style="color:#14b8a6">—</div>
           <div class="stat-lbl">Facilities</div>
         </div>
+      </div>
+      <div class="exposure-section">
+        <div class="exposure-val" id="popExposed">—</div>
+        <div class="exposure-lbl">People in Hazard Zones</div>
+      </div>
+      <div class="cost-section">
+        <div class="cost-val" id="totalCost">—</div>
+        <div class="cost-lbl">Federal Disaster Aid (2000–Present)</div>
       </div>
     </div>
 
@@ -462,6 +532,12 @@
       <p>Fetching live NOAA & USGS data...</p>
     </div>
     <div id="map" style="flex:1"></div>
+    <div class="export-bar">
+      <span class="export-bar-label">Analytics & Export</span>
+      <button class="export-btn" onclick="exportCSV()">📥 Export CSV</button>
+      <button class="export-btn" onclick="exportChartsPNG()">📸 Export PNG</button>
+      <button class="export-btn" onclick="copySummary()">📋 Copy Summary</button>
+    </div>
     <div class="chart-panel">
       <div class="chart-box">
         <div class="chart-title">Disaster Declarations by Year (FEMA)</div>
@@ -509,20 +585,64 @@
         </div>
       </div>
     </div>
+    <div class="chart-panel">
+      <div class="chart-box">
+        <div class="chart-title">Federal Disaster Spending by Year</div>
+        <div class="chart-wrap">
+          <div class="skeleton" id="skelCostYear">
+            <div class="skeleton-bar" style="height:25%"></div>
+            <div class="skeleton-bar" style="height:40%"></div>
+            <div class="skeleton-bar" style="height:55%"></div>
+            <div class="skeleton-bar" style="height:35%"></div>
+            <div class="skeleton-bar" style="height:70%"></div>
+            <div class="skeleton-bar" style="height:45%"></div>
+            <div class="skeleton-bar" style="height:85%"></div>
+            <div class="skeleton-bar" style="height:50%"></div>
+            <div class="skeleton-bar" style="height:60%"></div>
+            <div class="skeleton-bar" style="height:90%"></div>
+          </div>
+          <canvas id="chartCostYear"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Spending by Disaster Category</div>
+        <div class="chart-wrap">
+          <div class="skeleton" id="skelCostType" style="align-items:center;justify-content:center;padding:0">
+            <div class="skeleton-donut"></div>
+          </div>
+          <canvas id="chartCostType"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Top 10 Costliest States</div>
+        <div class="chart-wrap">
+          <div class="skeleton" id="skelCostStates" style="flex-direction:column;align-items:stretch;justify-content:space-around;padding:8px 4px">
+            <div class="skeleton-bar" style="height:10px;width:90%;border-radius:3px"></div>
+            <div class="skeleton-bar" style="height:10px;width:70%;border-radius:3px"></div>
+            <div class="skeleton-bar" style="height:10px;width:55%;border-radius:3px"></div>
+            <div class="skeleton-bar" style="height:10px;width:42%;border-radius:3px"></div>
+            <div class="skeleton-bar" style="height:10px;width:35%;border-radius:3px"></div>
+          </div>
+          <canvas id="chartCostStates"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="sources">
   Data sources:
-  <span>📋 FEMA Disaster Declarations</span>
+  <span>📋 FEMA Declarations</span>
+  <span>💰 FEMA Disaster Summaries</span>
   <span>🌊 FEMA NFHL</span>
-  <span>🌍 USGS Earthquake Catalog</span>
+  <span>🌍 USGS Earthquakes</span>
   <span>⛈️ NOAA NWS</span>
-  <span>🔥 NIFC Wildfire Perimeters</span>
+  <span>🔥 NIFC Wildfires</span>
   <span>🏥 HIFLD Infrastructure</span>
-  <span>📊 US Census TIGER/Line</span>
+  <span>📊 US Census</span>
   <span>🔬 CDC/ATSDR SVI</span>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 // ─────────────────────────────────────────────
@@ -534,6 +654,27 @@ const USGS_API  = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojs
 const NIFC_API  = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,poly_GISAcres,attr_PercentContained,attr_FireCause,attr_FireDiscoveryDateTime&outSR=4326&f=geojson&resultRecordCount=500';
 const HIFLD_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&outFields=ID,NAME,ADDRESS,CITY,STATE,BEDS,STATUS,LATITUDE,LONGITUDE&outSR=4326&f=geojson&resultRecordCount=2000';
 const FEMA_API  = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries';
+const FEMA_COST_API = 'https://www.fema.gov/api/open/v1/FemaWebDisasterSummaries';
+
+// ── State populations (2023 Census estimates) ──
+const STATE_POP = {
+  AL:5108468,AK:733406,AZ:7303398,AR:3067732,CA:38965193,CO:5877610,
+  CT:3617176,DE:1017551,FL:22610726,GA:11029227,HI:1435138,ID:1964726,
+  IL:12549689,IN:6862199,IA:3207004,KS:2940546,KY:4526154,LA:4573749,
+  ME:1395722,MD:6180253,MA:7001399,MI:10037261,MN:5737915,MS:2939690,
+  MO:6196156,MT:1132812,NE:1978379,NV:3194176,NH:1402054,NJ:9290841,
+  NM:2114371,NY:19571216,NC:10835491,ND:783926,OH:11785935,OK:4053824,
+  OR:4233358,PA:12961683,RI:1095962,SC:5373555,SD:919318,TN:7126489,
+  TX:30503301,UT:3417734,VT:647464,VA:8683619,WA:7812880,WV:1770071,
+  WI:5910955,WY:584057,DC:678972
+};
+
+// Track affected states for population exposure
+const affectedStates = new Set();
+
+// Store data globally for export
+let _allDeclarationRecords = [];
+let _costData = [];
 
 // ── Theme toggle ──
 function toggleTheme() {
@@ -703,6 +844,14 @@ async function loadAlerts() {
     animateCounter('cntAlerts', features.length);
     renderAlertsList(listItems);
 
+    // Track affected states for population exposure
+    features.forEach(f => {
+      const desc = f.properties.areaDesc || '';
+      const matches = desc.match(/\b([A-Z]{2})\b/g);
+      if (matches) matches.forEach(m => { if (STATE_POP[m]) affectedStates.add(m); });
+    });
+    updatePopulationExposure();
+
   } catch(e) {
     console.warn('NOAA fetch failed:', e);
     document.getElementById('cntAlerts').textContent = '—';
@@ -756,6 +905,16 @@ async function loadQuakes() {
       `)
       .addTo(layers.quakes);
     });
+
+    // Extract states from place descriptions (e.g., "10 km SW of Rotan, Texas")
+    const stateNames = Object.entries(US_STATES);
+    features.forEach(f => {
+      const place = (f.properties.place || '').toLowerCase();
+      for (const [name, abbr] of stateNames) {
+        if (place.includes(name.toLowerCase())) { affectedStates.add(abbr); break; }
+      }
+    });
+    updatePopulationExposure();
 
   } catch(e) {
     console.warn('USGS fetch failed:', e);
@@ -960,8 +1119,291 @@ async function loadDisasterTimeline() {
   if (!yearData.length) return;
   renderYearlyChart(yearData);
   const allRecords = yearData.flatMap(d => d.records);
+  _allDeclarationRecords = allRecords;
   renderTypeChart(allRecords);
   renderStatesChart(allRecords);
+  // Load cost data in parallel (non-blocking)
+  loadDisasterCosts(yearData);
+}
+
+// ── Population Exposure ──
+function updatePopulationExposure() {
+  let totalPop = 0;
+  affectedStates.forEach(st => { totalPop += (STATE_POP[st] || 0); });
+  const el = document.getElementById('popExposed');
+  if (totalPop >= 1e9) el.textContent = (totalPop / 1e9).toFixed(1) + 'B';
+  else if (totalPop >= 1e6) el.textContent = (totalPop / 1e6).toFixed(1) + 'M';
+  else if (totalPop >= 1e3) el.textContent = (totalPop / 1e3).toFixed(0) + 'K';
+  else el.textContent = totalPop.toLocaleString();
+}
+
+// ── FEMA Disaster Costs ──
+function formatDollars(n) {
+  if (n >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(0) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+  return '$' + n.toFixed(0);
+}
+
+async function loadDisasterCosts(yearData) {
+  try {
+    // Fetch cost summaries from FEMA
+    const url = `${FEMA_COST_API}?$select=disasterNumber,totalAmountIhpApproved,totalAmountHaApproved,totalAmountOnaApproved,totalObligatedAmountPa,totalObligatedAmountHmgp&$top=10000`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const summaries = data.FemaWebDisasterSummaries || [];
+
+    // Build cost lookup by disaster number
+    const costMap = {};
+    summaries.forEach(s => {
+      const total = (s.totalAmountIhpApproved || 0) + (s.totalAmountHaApproved || 0)
+        + (s.totalAmountOnaApproved || 0) + (s.totalObligatedAmountPa || 0)
+        + (s.totalObligatedAmountHmgp || 0);
+      if (total > 0) costMap[s.disasterNumber] = total;
+    });
+
+    // Join with declaration records for year/type/state info
+    const allRecords = yearData.flatMap(d => d.records);
+    _costData = summaries;
+
+    // Cost by year
+    const costByYear = {};
+    const seenDn = new Set();
+    allRecords.forEach(rec => {
+      const dn = rec.disasterNumber;
+      if (seenDn.has(dn) || !costMap[dn]) return;
+      seenDn.add(dn);
+      const yr = yearData.find(y => y.records.some(r => r.disasterNumber === dn));
+      if (yr) costByYear[yr.year] = (costByYear[yr.year] || 0) + costMap[dn];
+    });
+
+    // Cost by incident type
+    const costByType = {};
+    seenDn.clear();
+    allRecords.forEach(rec => {
+      const dn = rec.disasterNumber;
+      if (seenDn.has(dn) || !costMap[dn]) return;
+      seenDn.add(dn);
+      const t = rec.incidentType || 'Other';
+      costByType[t] = (costByType[t] || 0) + costMap[dn];
+    });
+
+    // Cost by state
+    const costByState = {};
+    allRecords.forEach(rec => {
+      if (!costMap[rec.disasterNumber]) return;
+      const key = `${rec.disasterNumber}-${rec.state}`;
+      if (!costByState[rec.state]) costByState[rec.state] = { total: 0, seen: new Set() };
+      if (!costByState[rec.state].seen.has(rec.disasterNumber)) {
+        costByState[rec.state].seen.add(rec.disasterNumber);
+        costByState[rec.state].total += costMap[rec.disasterNumber];
+      }
+    });
+
+    // Total federal aid
+    let grandTotal = 0;
+    Object.values(costMap).forEach(v => { grandTotal += v; });
+    const costEl = document.getElementById('totalCost');
+    costEl.textContent = formatDollars(grandTotal);
+
+    renderCostYearChart(costByYear);
+    renderCostTypeChart(costByType);
+    renderCostStatesChart(costByState);
+
+  } catch(e) {
+    console.warn('FEMA cost fetch failed:', e);
+    document.getElementById('totalCost').textContent = 'N/A';
+    hideSkeleton('skelCostYear');
+    hideSkeleton('skelCostType');
+    hideSkeleton('skelCostStates');
+  }
+}
+
+function renderCostYearChart(costByYear) {
+  hideSkeleton('skelCostYear');
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  const amounts = [];
+  for (let yr = 2000; yr <= currentYear; yr++) {
+    years.push(yr);
+    amounts.push((costByYear[yr] || 0) / 1e9); // Convert to billions
+  }
+
+  new Chart(document.getElementById('chartCostYear'), {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [{
+        label: 'Federal Aid ($B)',
+        data: amounts,
+        backgroundColor: amounts.map(a => a > 50 ? '#ef4444' : a > 20 ? '#f97316' : '#22c55e'),
+        borderRadius: 3,
+        barPercentage: 0.8,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+        y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: v => '$' + v + 'B' } },
+      },
+    },
+  });
+}
+
+function renderCostTypeChart(costByType) {
+  hideSkeleton('skelCostType');
+  const sorted = Object.entries(costByType).sort((a,b) => b[1] - a[1]).slice(0, 8);
+  const colors = ['#22c55e','#3b82f6','#f97316','#ef4444','#8b5cf6','#ec4899','#eab308','#14b8a6'];
+
+  new Chart(document.getElementById('chartCostType'), {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(s => s[0]),
+      datasets: [{ data: sorted.map(s => s[1] / 1e9), backgroundColor: colors, borderWidth: 0 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
+        tooltip: { callbacks: { label: ctx => ctx.label + ': $' + ctx.raw.toFixed(1) + 'B' } },
+      },
+    },
+  });
+}
+
+function renderCostStatesChart(costByState) {
+  hideSkeleton('skelCostStates');
+  const sorted = Object.entries(costByState)
+    .map(([st, d]) => [st, d.total])
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 10);
+
+  new Chart(document.getElementById('chartCostStates'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(s => s[0]),
+      datasets: [{
+        label: 'Federal Aid',
+        data: sorted.map(s => s[1] / 1e9),
+        backgroundColor: '#22c55e',
+        borderRadius: 3,
+        barPercentage: 0.7,
+      }],
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
+      },
+      scales: {
+        x: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: v => '$' + v + 'B' } },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      },
+    },
+  });
+}
+
+// ── Export Functions ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function exportCSV() {
+  if (!_allDeclarationRecords.length) { showToast('Data still loading...'); return; }
+
+  const seen = new Set();
+  const rows = [['Disaster Number', 'State', 'Incident Type']];
+  _allDeclarationRecords.forEach(r => {
+    const key = `${r.disasterNumber}-${r.state}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push([r.disasterNumber, r.state, r.incidentType || 'Unknown']);
+  });
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'resiliencemap_disasters.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded!');
+}
+
+function exportChartsPNG() {
+  const canvases = document.querySelectorAll('.chart-wrap canvas');
+  if (!canvases.length) { showToast('Charts not loaded yet'); return; }
+
+  // Combine all charts into one image
+  const padding = 20;
+  const perRow = 3;
+  const chartW = canvases[0].width;
+  const chartH = canvases[0].height;
+  const rows = Math.ceil(canvases.length / perRow);
+  const totalW = perRow * chartW + (perRow + 1) * padding;
+  const totalH = rows * chartH + (rows + 1) * padding;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = totalW;
+  canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0f1117';
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  canvases.forEach((c, i) => {
+    const col = i % perRow;
+    const row = Math.floor(i / perRow);
+    const x = padding + col * (chartW + padding);
+    const y = padding + row * (chartH + padding);
+    ctx.drawImage(c, x, y);
+  });
+
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'resiliencemap_charts.png';
+  a.click();
+  showToast('PNG downloaded!');
+}
+
+function copySummary() {
+  const alerts = document.getElementById('cntAlerts').textContent;
+  const quakes = document.getElementById('cntQuakes').textContent;
+  const fires = document.getElementById('cntWildfires').textContent;
+  const infra = document.getElementById('cntInfra').textContent;
+  const pop = document.getElementById('popExposed').textContent;
+  const cost = document.getElementById('totalCost').textContent;
+
+  const summary = `ResilienceMap — US Disaster Risk Summary
+Generated: ${new Date().toLocaleString()}
+
+Live Hazards:
+  Storm Alerts: ${alerts}
+  Earthquakes (30d): ${quakes}
+  Active Wildfires: ${fires}
+  Critical Facilities Tracked: ${infra}
+
+Population in Hazard Zones: ${pop}
+Federal Disaster Aid (2000–Present): ${cost}
+
+Source: https://henok256.github.io/resiliencemap/
+Data: FEMA, USGS, NOAA, NIFC, HIFLD, CDC/ATSDR SVI`;
+
+  navigator.clipboard.writeText(summary).then(() => {
+    showToast('Summary copied to clipboard!');
+  }).catch(() => {
+    showToast('Copy failed — check browser permissions');
+  });
 }
 
 // ── FEMA Flood Zones (WMS tiles) ──

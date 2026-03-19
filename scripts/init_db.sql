@@ -127,6 +127,21 @@ CREATE INDEX IF NOT EXISTS idx_disaster_date   ON disaster_declarations(declarat
 CREATE INDEX IF NOT EXISTS idx_disaster_type   ON disaster_declarations(incident_type);
 CREATE INDEX IF NOT EXISTS idx_disaster_year   ON disaster_declarations(EXTRACT(YEAR FROM declaration_date));
 
+-- FEMA disaster cost summaries
+CREATE TABLE IF NOT EXISTS disaster_costs (
+    id                     SERIAL PRIMARY KEY,
+    disaster_number        INTEGER NOT NULL UNIQUE,
+    total_ihp_approved     FLOAT DEFAULT 0.0,
+    total_ha_approved      FLOAT DEFAULT 0.0,
+    total_ona_approved     FLOAT DEFAULT 0.0,
+    total_pa_obligated     FLOAT DEFAULT 0.0,
+    total_hmgp_obligated   FLOAT DEFAULT 0.0,
+    total_cost             FLOAT DEFAULT 0.0,
+    ingested_at            TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cost_disaster ON disaster_costs(disaster_number);
+CREATE INDEX IF NOT EXISTS idx_cost_total    ON disaster_costs(total_cost DESC);
+
 -- Risk scores (one row per tract, updated on each scoring run)
 CREATE TABLE IF NOT EXISTS risk_scores (
     id                        SERIAL PRIMARY KEY,

@@ -126,6 +126,22 @@ class DisasterDeclaration(Base):
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class DisasterCost(Base):
+    """FEMA disaster cost summaries — federal aid amounts per disaster."""
+
+    __tablename__ = "disaster_costs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    disaster_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    total_ihp_approved: Mapped[float] = mapped_column(Float, default=0.0)
+    total_ha_approved: Mapped[float] = mapped_column(Float, default=0.0)
+    total_ona_approved: Mapped[float] = mapped_column(Float, default=0.0)
+    total_pa_obligated: Mapped[float] = mapped_column(Float, default=0.0)
+    total_hmgp_obligated: Mapped[float] = mapped_column(Float, default=0.0)
+    total_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class RiskScore(Base):
     """Computed composite risk score per census tract."""
 

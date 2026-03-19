@@ -93,6 +93,30 @@ class StateTrendResponse(BaseModel):
     trend: list[DisasterTrendResponse]
 
 
+class DisasterCostResponse(BaseModel):
+    disaster_number: int
+    total_ihp_approved: float
+    total_ha_approved: float
+    total_ona_approved: float
+    total_pa_obligated: float
+    total_hmgp_obligated: float
+    total_cost: float
+
+    model_config = {"from_attributes": True}
+
+
+class CostTrendResponse(BaseModel):
+    year: int
+    total_cost: float
+    disaster_count: int
+
+
+class CostByTypeResponse(BaseModel):
+    incident_type: str
+    total_cost: float
+    disaster_count: int
+
+
 class GeoJSONFeature(BaseModel):
     type: str = "Feature"
     geometry: dict[str, Any]

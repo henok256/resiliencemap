@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.responses import (
+    CostByTypeResponse,
+    CostTrendResponse,
     DisasterDeclarationResponse,
     DisasterTrendResponse,
     StateTrendResponse,
@@ -185,3 +187,75 @@ def get_state_trends(
         )
 
     return results
+
+
+@router.get("/disasters/costs/yearly", response_model=list[CostTrendResponse])
+def get_cost_trends_yearly(
+    since_year: int = Query(2000, ge=1953, le=2030),
+    db: Session = Depends(get_db),
+) -> list[CostTrendResponse]:
+    """
+    Return total federal disaster spending by year, joined with declarations for dates.
+    """
+    rows = (
+        db.execute(
+            text("""
+                SELECT EXTRACT(YEAR FROM d.declaration_date)::int AS year,
+                       SUM(c.total_cost) AS total_cost,
+                       COUNT(DISTINCT d.disaster_number) AS disaster_count
+                FROM disaster_costs c
+                JOIN disaster_declarations d ON d.disaster_number = c.disaster_number
+                WHERE d.declaration_date >= :since
+                GROUP BY year
+                ORDER BY year
+            """),
+            {"since": f"{since_year}-01-01"},
+        )
+        .mappings()
+        .all()
+    )
+
+    return [
+        CostTrendResponse(
+            year=r["year"],
+            total_cost=float(r["total_cost"] or 0),
+            disaster_count=r["disaster_count"],
+        )
+        for r in rows
+    ]
+
+
+@router.get("/disasters/costs/by-type", response_model=list[CostByTypeResponse])
+def get_cost_by_type(
+    since_year: int = Query(2000, ge=1953, le=2030),
+    db: Session = Depends(get_db),
+) -> list[CostByTypeResponse]:
+    """
+    Return total federal disaster spending grouped by incident type.
+    """
+    rows = (
+        db.execute(
+            text("""
+                SELECT d.incident_type,
+                       SUM(c.total_cost) AS total_cost,
+                       COUNT(DISTINCT d.disaster_number) AS disaster_count
+                FROM disaster_costs c
+                JOIN disaster_declarations d ON d.disaster_number = c.disaster_number
+                WHERE d.declaration_date >= :since
+                GROUP BY d.incident_type
+                ORDER BY total_cost DESC
+            """),
+            {"since": f"{since_year}-01-01"},
+        )
+        .mappings()
+        .all()
+    )
+
+    return [
+        CostByTypeResponse(
+            incident_type=r["incident_type"],
+            total_cost=float(r["total_cost"] or 0),
+            disaster_count=r["disaster_count"],
+        )
+        for r in rows
+    ]

@@ -24,6 +24,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ingestion.census.ingest_svi import run_ingestion as run_svi
+from ingestion.fema.ingest_costs import run_ingestion as run_costs
 from ingestion.fema.ingest_declarations import run_ingestion as run_declarations
 from ingestion.hifld.ingest_infrastructure import run_ingestion as run_infrastructure
 from ingestion.nifc.ingest_wildfires import run_ingestion as run_wildfires
@@ -66,6 +67,12 @@ def job_fema_declarations() -> None:
     """Weekly: refresh FEMA disaster declarations (historical data)."""
     logger.info("=== SCHEDULED JOB: FEMA disaster declarations ingestion ===")
     run_declarations(since_year=2000)
+
+
+def job_fema_costs() -> None:
+    """Weekly: refresh FEMA disaster cost summaries."""
+    logger.info("=== SCHEDULED JOB: FEMA disaster costs ingestion ===")
+    run_costs()
 
 
 def job_hifld_infrastructure() -> None:
@@ -135,6 +142,16 @@ def main() -> None:
         misfire_grace_time=3600,
     )
 
+    # FEMA Costs: weekly (runs after declarations)
+    scheduler.add_job(
+        job_fema_costs,
+        trigger=CronTrigger(day_of_week="sun", hour=4, minute=30),
+        id="fema_costs",
+        name="FEMA Disaster Costs Ingestion",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     # HIFLD Infrastructure: weekly (relatively static data)
     scheduler.add_job(
         job_hifld_infrastructure,
@@ -170,6 +187,11 @@ def main() -> None:
         job_fema_declarations()
     except Exception as e:
         logger.error("Initial FEMA declarations ingestion failed: %s", e)
+
+    try:
+        job_fema_costs()
+    except Exception as e:
+        logger.error("Initial FEMA cost ingestion failed: %s", e)
 
     try:
         job_hifld_infrastructure()
