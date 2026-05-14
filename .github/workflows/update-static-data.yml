@@ -116,9 +116,48 @@ jobs:
           # Build FEMA_TOTAL_AID (sum of all costs, 2000-present)
           total_aid = int(sum(costs.get(dn, 0) for dn in cost_seen))
 
+          # ── Build FEMA_COST_PER_STATE with proportional splitting ────────────
+          # Multi-state disasters (e.g. COVID) share cost equally across states
+          # so no single state is falsely attributed the full national total.
+          disaster_states = collections.defaultdict(set)
+          disaster_meta   = {}
+          with open('decl.csv', newline='', encoding='utf-8-sig') as f:
+              for row in csv.DictReader(f):
+                  try:
+                      dn   = int(row['disasterNumber'])
+                      year = int((row.get('declarationDate') or '')[:4])
+                  except (ValueError, KeyError):
+                      continue
+                  if year < 2000: continue
+                  itype = (row.get('incidentType') or 'Other').strip() or 'Other'
+                  state = (row.get('state') or '').strip()
+                  if not state: continue
+                  disaster_states[dn].add(state)
+                  disaster_meta[dn] = {'type': itype, 'year': year}
+
+          state_yr   = collections.defaultdict(lambda: collections.defaultdict(float))
+          state_type = collections.defaultdict(lambda: collections.defaultdict(float))
+          for dn, states in disaster_states.items():
+              amt = costs.get(dn, 0.0)
+              if not amt: continue
+              share = amt / len(states)
+              meta  = disaster_meta[dn]
+              for st in states:
+                  state_yr[st][meta['year']]   += share
+                  state_type[st][meta['type']] += share
+
+          fema_cost_per_state = {}
+          for st in sorted(state_yr.keys()):
+              by_year = sorted([{'y': y, 'c': round(c)} for y, c in state_yr[st].items()],   key=lambda x: x['y'])
+              by_type = sorted([{'t': t, 'c': round(c)} for t, c in state_type[st].items()], key=lambda x: -x['c'])[:10]
+              total   = sum(d['c'] for d in by_year)
+              if total < 1000: continue
+              fema_cost_per_state[st] = {'byYear': by_year, 'byType': by_type}
+
           print(f"FEMA_TOTAL_AID:    ${total_aid/1e9:.1f}B")
           print(f"FEMA_STATIC years: {len(fema_static_years)}")
           print(f"FEMA_COST years:   {len(fema_cost_static['byYear'])}")
+          print(f"FEMA_COST_PER_STATE states: {len(fema_cost_per_state)}")
 
           # ── Patch docs/index.html ───────────────────────────────────────────
           with open('docs/index.html', 'r', encoding='utf-8') as f:
@@ -137,6 +176,11 @@ jobs:
           html = re.sub(
               r'const FEMA_COST_STATIC = \{[^\n]*\};',
               'const FEMA_COST_STATIC = ' + json.dumps(fema_cost_static, separators=(',', ':')) + ';',
+              html,
+          )
+          html = re.sub(
+              r'const FEMA_COST_PER_STATE = \{[^\n]*\};',
+              'const FEMA_COST_PER_STATE = ' + json.dumps(fema_cost_per_state, separators=(',', ':')) + ';',
               html,
           )
 
