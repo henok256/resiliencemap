@@ -1853,7 +1853,12 @@ async function loadChoropleth() {
       onEachFeature: function(feature, layer) {
         const fips = String(feature.id).padStart(2, '0');
         const abbr = FIPS_TO_STATE[fips];
-        layer.on('click', function() { if (abbr) selectState(abbr); });
+        layer.on('click', function() {
+          if (!abbr) return;
+          const name = Object.entries(US_STATES).find(([,a]) => a === abbr)?.[0] || abbr;
+          searchInput.value = name + ' (' + abbr + ')';
+          selectState(abbr);
+        });
         layer.on('mouseover', function(e) {
           layer.setStyle({ weight: 2, color: '#94a3b8', fillOpacity: 0.75 });
           if (abbr) {
