@@ -84,6 +84,7 @@ jobs:
             echo "No change in aid total — skipping commit"
           else
             NEW=${{ steps.calc.outputs.total }}
-            git commit -m "chore: update FEMA total aid to \$$(python3 -c \"print(f'{${NEW}/1e9:.1f}B')\")"
+            BILLIONS=$(python3 -c "print(f'{${NEW}/1e9:.1f}')")
+            git commit -m "chore: update FEMA total aid to \$${BILLIONS}B"
             git push
           fi
