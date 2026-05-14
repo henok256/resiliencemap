@@ -286,8 +286,8 @@
     /* ── Charts panel ── */
     .chart-panel {
       background: var(--bg-secondary); border-top: 1px solid var(--border);
-      height: 240px; flex-shrink: 0;
-      display: flex; gap: 0;
+      height: 260px; flex-shrink: 0;
+      display: flex; gap: 0; overflow: hidden;
       transition: background .3s, border-color .3s;
     }
     .chart-box {
@@ -1232,6 +1232,7 @@ function renderYearlyChart(yearData) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { bottom: 2 } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { title: (items) => years[items[0].dataIndex] } } },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0, minRotation: 0 } },
@@ -1475,6 +1476,7 @@ function renderCostYearChart(costByYear) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { bottom: 2 } },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { title: (items) => years[items[0].dataIndex], label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
