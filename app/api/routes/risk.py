@@ -77,10 +77,11 @@ def get_state_risk(
     """
     top = min(top, 100)
 
-    rows = db.execute(
-        select(RiskScore)
-        .where(RiskScore.county_fips.startswith(state_fips))
-    ).scalars().all()
+    rows = (
+        db.execute(select(RiskScore).where(RiskScore.county_fips.startswith(state_fips)))
+        .scalars()
+        .all()
+    )
 
     if not rows:
         raise HTTPException(

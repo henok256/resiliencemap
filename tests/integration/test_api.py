@@ -21,6 +21,7 @@ from app.models.hazard import (
 # Health
 # ---------------------------------------------------------------------------
 
+
 class TestHealth:
     def test_returns_200(self, client):
         r = client.get("/health")
@@ -42,6 +43,7 @@ class TestHealth:
 # ---------------------------------------------------------------------------
 # Risk scores
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def risk_row(db):
@@ -80,15 +82,27 @@ class TestRiskCounty:
 
     def test_tract_fields_present(self, client, risk_row):
         tract = client.get("/api/v1/risk/county/48201").json()["tracts"][0]
-        for field in ("tract_geoid", "flood_score", "seismic_score",
-                      "storm_score", "wildfire_score",
-                      "social_vulnerability_score", "composite_score"):
+        for field in (
+            "tract_geoid",
+            "flood_score",
+            "seismic_score",
+            "storm_score",
+            "wildfire_score",
+            "social_vulnerability_score",
+            "composite_score",
+        ):
             assert field in tract
 
     def test_scores_in_range(self, client, risk_row):
         tract = client.get("/api/v1/risk/county/48201").json()["tracts"][0]
-        for field in ("flood_score", "seismic_score", "storm_score",
-                      "wildfire_score", "social_vulnerability_score", "composite_score"):
+        for field in (
+            "flood_score",
+            "seismic_score",
+            "storm_score",
+            "wildfire_score",
+            "social_vulnerability_score",
+            "composite_score",
+        ):
             assert 0.0 <= tract[field] <= 1.0
 
 
@@ -126,17 +140,19 @@ class TestRiskState:
 
     def test_top_param_respected(self, client, db):
         for i in range(5):
-            db.add(RiskScore(
-                tract_geoid=f"3600000{i:04d}",
-                county_fips="36000",
-                flood_score=0.1,
-                seismic_score=0.1,
-                storm_score=0.1,
-                wildfire_score=0.1,
-                social_vulnerability_score=0.1,
-                composite_score=round(0.1 + 0.01 * i, 6),
-                computed_at=datetime.now(UTC),
-            ))
+            db.add(
+                RiskScore(
+                    tract_geoid=f"3600000{i:04d}",
+                    county_fips="36000",
+                    flood_score=0.1,
+                    seismic_score=0.1,
+                    storm_score=0.1,
+                    wildfire_score=0.1,
+                    social_vulnerability_score=0.1,
+                    composite_score=round(0.1 + 0.01 * i, 6),
+                    computed_at=datetime.now(UTC),
+                )
+            )
         db.flush()
         body = client.get("/api/v1/risk/state/36?top=2").json()
         assert len(body["top_tracts"]) <= 2
@@ -152,17 +168,19 @@ class TestRiskTop:
 
     def test_limit_param_respected(self, client, db):
         for i in range(5):
-            db.add(RiskScore(
-                tract_geoid=f"0600000{i:04d}",
-                county_fips="06000",
-                flood_score=0.1 * i,
-                seismic_score=0.0,
-                storm_score=0.0,
-                wildfire_score=0.0,
-                social_vulnerability_score=0.0,
-                composite_score=round(0.1 * i, 6),
-                computed_at=datetime.now(UTC),
-            ))
+            db.add(
+                RiskScore(
+                    tract_geoid=f"0600000{i:04d}",
+                    county_fips="06000",
+                    flood_score=0.1 * i,
+                    seismic_score=0.0,
+                    storm_score=0.0,
+                    wildfire_score=0.0,
+                    social_vulnerability_score=0.0,
+                    composite_score=round(0.1 * i, 6),
+                    computed_at=datetime.now(UTC),
+                )
+            )
         db.flush()
         body = client.get("/api/v1/risk/top?limit=3").json()
         assert len(body) <= 3
@@ -170,17 +188,19 @@ class TestRiskTop:
     def test_ordered_by_composite_score_desc(self, client, db):
         scores = [0.9, 0.3, 0.6]
         for i, s in enumerate(scores):
-            db.add(RiskScore(
-                tract_geoid=f"1200000{i:04d}",
-                county_fips="12000",
-                flood_score=s,
-                seismic_score=0.0,
-                storm_score=0.0,
-                wildfire_score=0.0,
-                social_vulnerability_score=0.0,
-                composite_score=s,
-                computed_at=datetime.now(UTC),
-            ))
+            db.add(
+                RiskScore(
+                    tract_geoid=f"1200000{i:04d}",
+                    county_fips="12000",
+                    flood_score=s,
+                    seismic_score=0.0,
+                    storm_score=0.0,
+                    wildfire_score=0.0,
+                    social_vulnerability_score=0.0,
+                    composite_score=s,
+                    computed_at=datetime.now(UTC),
+                )
+            )
         db.flush()
         body = client.get("/api/v1/risk/top?state_fips=12").json()
         returned_scores = [t["composite_score"] for t in body]
@@ -191,6 +211,7 @@ class TestRiskTop:
 # Alerts
 # ---------------------------------------------------------------------------
 
+
 class TestAlerts:
     def test_returns_200(self, client):
         assert client.get("/api/v1/alerts/active").status_code == 200
@@ -199,28 +220,32 @@ class TestAlerts:
         assert client.get("/api/v1/alerts/active").json() == []
 
     def test_expired_alert_not_returned(self, client, db):
-        db.add(StormAlert(
-            noaa_id="test-expired-001",
-            event="Tornado Warning",
-            severity="Extreme",
-            certainty="Observed",
-            headline="Test expired alert",
-            effective=datetime.now(UTC) - timedelta(hours=4),
-            expires=datetime.now(UTC) - timedelta(hours=2),
-        ))
+        db.add(
+            StormAlert(
+                noaa_id="test-expired-001",
+                event="Tornado Warning",
+                severity="Extreme",
+                certainty="Observed",
+                headline="Test expired alert",
+                effective=datetime.now(UTC) - timedelta(hours=4),
+                expires=datetime.now(UTC) - timedelta(hours=2),
+            )
+        )
         db.flush()
         assert client.get("/api/v1/alerts/active").json() == []
 
     def test_active_alert_returned(self, client, db):
-        db.add(StormAlert(
-            noaa_id="test-active-001",
-            event="Flash Flood Warning",
-            severity="Severe",
-            certainty="Likely",
-            headline="Test active alert",
-            effective=datetime.now(UTC) - timedelta(hours=1),
-            expires=datetime.now(UTC) + timedelta(hours=6),
-        ))
+        db.add(
+            StormAlert(
+                noaa_id="test-active-001",
+                event="Flash Flood Warning",
+                severity="Severe",
+                certainty="Likely",
+                headline="Test active alert",
+                effective=datetime.now(UTC) - timedelta(hours=1),
+                expires=datetime.now(UTC) + timedelta(hours=6),
+            )
+        )
         db.flush()
         body = client.get("/api/v1/alerts/active").json()
         assert len(body) == 1
@@ -228,15 +253,17 @@ class TestAlerts:
 
     def test_severity_filter(self, client, db):
         for sev, noaa_id in [("Extreme", "alert-ext"), ("Minor", "alert-min")]:
-            db.add(StormAlert(
-                noaa_id=noaa_id,
-                event="Test Event",
-                severity=sev,
-                certainty="Observed",
-                headline="Test",
-                effective=datetime.now(UTC) - timedelta(hours=1),
-                expires=datetime.now(UTC) + timedelta(hours=6),
-            ))
+            db.add(
+                StormAlert(
+                    noaa_id=noaa_id,
+                    event="Test Event",
+                    severity=sev,
+                    certainty="Observed",
+                    headline="Test",
+                    effective=datetime.now(UTC) - timedelta(hours=1),
+                    expires=datetime.now(UTC) + timedelta(hours=6),
+                )
+            )
         db.flush()
         body = client.get("/api/v1/alerts/active?severity=Extreme").json()
         assert all(a["severity"] == "Extreme" for a in body)
@@ -245,6 +272,7 @@ class TestAlerts:
 # ---------------------------------------------------------------------------
 # Hazards GeoJSON
 # ---------------------------------------------------------------------------
+
 
 class TestHazardsGeoJSON:
     @pytest.mark.parametrize("layer", ["flood", "seismic", "wildfire", "infrastructure"])
@@ -267,6 +295,7 @@ class TestHazardsGeoJSON:
 # ---------------------------------------------------------------------------
 # Disaster declarations
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def disaster_row(db):
@@ -329,15 +358,17 @@ class TestDisasters:
         assert client.get("/api/v1/disasters/costs/yearly").status_code == 200
 
     def test_cost_trends_with_joined_data(self, client, db, disaster_row):
-        db.add(DisasterCost(
-            disaster_number=4001,
-            total_ihp_approved=1_000_000.0,
-            total_ha_approved=500_000.0,
-            total_ona_approved=0.0,
-            total_pa_obligated=5_000_000.0,
-            total_hmgp_obligated=200_000.0,
-            total_cost=6_700_000.0,
-        ))
+        db.add(
+            DisasterCost(
+                disaster_number=4001,
+                total_ihp_approved=1_000_000.0,
+                total_ha_approved=500_000.0,
+                total_ona_approved=0.0,
+                total_pa_obligated=5_000_000.0,
+                total_hmgp_obligated=200_000.0,
+                total_cost=6_700_000.0,
+            )
+        )
         db.flush()
         body = client.get("/api/v1/disasters/costs/yearly").json()
         assert len(body) == 1

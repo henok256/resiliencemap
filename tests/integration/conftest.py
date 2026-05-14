@@ -48,6 +48,7 @@ def db(engine):
 @pytest.fixture()
 def client(db):
     """TestClient with the real DB session injected via dependency override."""
+
     def _override_get_db():
         yield db
 
