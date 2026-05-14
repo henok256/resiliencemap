@@ -713,7 +713,6 @@ const NIFC_API  = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/ser
 const HIFLD_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&outFields=ID,NAME,ADDRESS,CITY,STATE,BEDS,STATUS,LATITUDE,LONGITUDE&outSR=4326&f=geojson&resultRecordCount=2000';
 const HIFLD_COUNT_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&returnCountOnly=true&f=json';
 const FEMA_API  = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries';
-const FEMA_COST_API = 'https://www.fema.gov/api/open/v1/FemaWebDisasterSummaries';
 
 // ── State populations (2023 Census estimates) ──
 const STATE_POP = {
@@ -742,6 +741,9 @@ let activeState = null;
 // ── Static FEMA declaration data (extracted from OpenFEMA CSV, 2000-present) ──
 // Total federal disaster aid 2000-present extracted from FemaWebDisasterSummaries CSV
 const FEMA_TOTAL_AID = 372594467398;
+
+// ── Static FEMA cost data (extracted from FemaWebDisasterSummaries CSV, 2000-present) ──
+const FEMA_COST_STATIC = {"byYear":[{"year":2000,"totalCost":1050847965},{"year":2001,"totalCost":6516102026},{"year":2002,"totalCost":1272522383},{"year":2003,"totalCost":2135810859},{"year":2004,"totalCost":7315941906},{"year":2005,"totalCost":38106670182},{"year":2006,"totalCost":1572232607},{"year":2007,"totalCost":2557952147},{"year":2008,"totalCost":9533300100},{"year":2009,"totalCost":2331369195},{"year":2010,"totalCost":3399328029},{"year":2011,"totalCost":6465535958},{"year":2012,"totalCost":23147776552},{"year":2013,"totalCost":2007740649},{"year":2014,"totalCost":1754518519},{"year":2015,"totalCost":1956075582},{"year":2016,"totalCost":6272382321},{"year":2017,"totalCost":75075161528},{"year":2018,"totalCost":8931741068},{"year":2019,"totalCost":3139568031},{"year":2020,"totalCost":107217694920},{"year":2021,"totalCost":11292371429},{"year":2022,"totalCost":9979700694},{"year":2023,"totalCost":5080257167},{"year":2024,"totalCost":16903111658},{"year":2025,"totalCost":2052645763},{"year":2026,"totalCost":147765942}],"byType":[{"type":"Hurricane","totalCost":184478203271},{"type":"Biological","totalCost":96966238007},{"type":"Severe Storm","totalCost":27749191423},{"type":"Flood","totalCost":16980002005},{"type":"Fire","totalCost":16716871060},{"type":"Tropical Storm","totalCost":3980736471},{"type":"Severe Ice Storm","totalCost":3208094939},{"type":"Earthquake","totalCost":2091377026},{"type":"Snowstorm","totalCost":1393825216},{"type":"Tornado","totalCost":992331913},{"type":"Typhoon","totalCost":901764364},{"type":"Coastal Storm","totalCost":748636604},{"type":"Winter Storm","totalCost":283246890},{"type":"Other","totalCost":211694972},{"type":"Volcanic Eruption","totalCost":182468811}],"byState":[{"state":"NY","totalCost":46192908773},{"state":"LA","totalCost":43719557016},{"state":"PR","totalCost":43427805220},{"state":"TX","totalCost":32354378481},{"state":"FL","totalCost":32132229494},{"state":"CA","totalCost":25863443051},{"state":"VI","totalCost":22585548092},{"state":"NJ","totalCost":8769581489},{"state":"NC","totalCost":7754859962},{"state":"MS","totalCost":7486558129}]};
 
 const FEMA_STATIC = {"years":{"2000":{"c":104,"t":{"Fire":64,"Hurricane":7,"Severe Storm":27,"Earthquake":1,"Flood":2,"Snowstorm":1,"Tornado":2},"s":{"NM":7,"MA":1,"VI":2,"PR":1,"FL":12,"NV":3,"OK":3,"TX":19,"AL":3,"CO":3,"LA":2,"MT":7,"SD":3,"WA":3,"WY":1,"HI":1,"MO":2,"KY":3,"OH":3,"CA":1,"ID":1,"DC":2,"VT":2,"NY":1,"ND":1,"MN":1,"WI":1,"TN":1,"KS":1,"ME":2,"MD":1,"WV":1,"VA":1,"AK":1,"GA":2,"SC":1,"NC":1,"NH":1,"AZ":1,"NJ":1}},"2001":{"c":103,"t":{"Fire":41,"Snowstorm":9,"Severe Ice Storm":6,"Other":2,"Coastal Storm":3,"Terrorist":1,"Severe Storm":33,"Flood":5,"Earthquake":1,"Freezing":1,"Tornado":1},"s":{"NJ":2,"VA":3,"VT":2,"NH":1,"MA":2,"ME":2,"WI":2,"IN":1,"IL":2,"MI":2,"AR":3,"OK":4,"NY":3,"WY":4,"UT":1,"OR":2,"WA":9,"NV":2,"SD":2,"AK":1,"NM":1,"FL":14,"GA":1,"TX":5,"KY":3,"TN":4,"MN":2,"OH":1,"MT":3,"PA":1,"MS":3,"LA":2,"ND":2,"CO":1,"NE":1,"PR":1,"IA":1,"KS":1,"AL":2,"HI":1,"AZ":1,"DC":1,"WV":1}},"2002":{"c":125,"t":{"Snowstorm":2,"Fire":84,"Hurricane":1,"Coastal Storm":1,"Severe Storm":21,"Tornado":3,"Typhoon":4,"Flood":4,"Earthquake":2,"Severe Ice Storm":3},"s":{"NY":3,"CA":12,"WY":3,"NM":9,"SD":2,"CO":20,"OR":9,"WA":2,"NV":4,"AZ":6,"UT":1,"ND":2,"SC":2,"NJ":1,"MN":2,"VA":6,"AL":2,"WV":3,"TN":3,"KY":5,"LA":1,"TX":2,"IN":2,"WI":2,"MP":1,"VT":1,"FM":2,"GU":2,"MT":1,"AK":1,"IA":1,"MI":1,"MO":2,"MD":1,"KS":1,"OK":2,"AR":1,"MS":1,"NE":1,"IL":1,"PR":1}},"2003":{"c":115,"t":{"Hurricane":11,"Severe Ice Storm":6,"Other":6,"Snowstorm":10,"Severe Storm":41,"Fire":35,"Tornado":1,"Freezing":1,"Typhoon":3,"Earthquake":1},"s":{"NC":3,"MI":1,"NJ":2,"OH":5,"NY":5,"CO":2,"DE":3,"RI":1,"PA":3,"MD":2,"DC":2,"NH":2,"CT":1,"MA":1,"ME":2,"LA":2,"TX":3,"NV":4,"WA":3,"CA":7,"OR":3,"MT":8,"OK":3,"UT":1,"AZ":4,"NM":2,"HI":1,"WV":3,"VA":2,"VT":1,"IN":2,"ND":1,"TN":4,"FL":2,"NE":1,"KY":3,"AS":1,"AR":2,"MS":4,"IL":1,"AL":3,"MO":1,"KS":1,"AK":3,"SC":1,"FM":1,"MP":1,"GU":1}},"2004":{"c":129,"t":{"Hurricane":13,"Snowstorm":7,"Fire":59,"Severe Storm":41,"Typhoon":5,"Dam/Levee Break":1,"Flood":1,"Severe Ice Storm":1,"Earthquake":1},"s":{"NC":2,"FL":4,"ND":2,"NY":2,"ME":3,"NH":1,"CT":1,"MA":2,"AL":1,"HI":1,"CA":33,"AK":3,"NV":5,"OR":3,"WA":6,"CO":5,"AZ":2,"NM":3,"UT":1,"SD":2,"WY":1,"KS":2,"GA":2,"VT":1,"WV":4,"PA":3,"OH":3,"PR":2,"MS":1,"LA":2,"SC":3,"VA":3,"IN":2,"MP":2,"KY":2,"GU":1,"NJ":1,"AR":2,"MI":1,"WI":1,"MO":1,"IA":1,"NE":1,"IL":1,"FM":2,"AS":1,"VI":1}},"2005":{"c":139,"t":{"Hurricane":57,"Coastal Storm":6,"Snowstorm":16,"Fire":27,"Severe Storm":29,"Tornado":1,"Flood":2,"Typhoon":1},"s":{"DE":2,"NY":4,"TX":3,"LA":5,"FL":4,"NH":4,"NJ":3,"ME":6,"RI":2,"NC":2,"MT":1,"MA":2,"MD":1,"OH":3,"WI":1,"CA":7,"ND":2,"CT":2,"NE":2,"ID":2,"NV":9,"MN":2,"AZ":9,"VA":2,"IA":1,"IN":3,"AL":4,"KS":3,"PA":2,"SD":5,"SC":2,"MO":1,"KY":2,"IL":2,"NM":1,"OR":2,"WA":3,"DC":1,"MI":1,"CO":2,"UT":4,"WV":2,"OK":1,"GA":1,"TN":2,"AR":1,"MS":3,"HI":5,"WY":1,"AK":2,"AS":1,"VI":1}},"2006":{"c":151,"t":{"Severe Storm":45,"Snowstorm":3,"Hurricane":2,"Fire":96,"Flood":2,"Severe Ice Storm":1,"Tornado":1,"Typhoon":1},"s":{"MO":3,"CT":2,"ME":2,"MA":3,"FL":2,"TX":22,"CA":11,"WA":4,"HI":2,"CO":3,"MT":3,"NV":6,"WY":2,"NE":4,"OR":3,"SD":3,"NM":6,"AZ":5,"AK":3,"VA":3,"OK":31,"KS":4,"OH":2,"DE":1,"NJ":1,"MD":1,"NY":1,"PA":1,"MN":2,"ND":3,"NH":2,"AR":1,"TN":1,"IL":1,"ID":1,"SC":1,"KY":1,"PR":1,"IN":1,"MP":1,"NC":1}},"2007":{"c":133,"t":{"Severe Storm":62,"Other":1,"Hurricane":1,"Drought":1,"Snowstorm":7,"Severe Ice Storm":3,"Fire":55,"Flood":1,"Freezing":1,"Earthquake":1},"s":{"WA":5,"KS":3,"IA":4,"MN":2,"TX":4,"FM":1,"IN":2,"NY":7,"OK":7,"CO":3,"IL":4,"MT":4,"CA":12,"OR":4,"ID":3,"HI":4,"WY":1,"NV":6,"SD":3,"UT":3,"AK":4,"GA":6,"FL":8,"NJ":2,"NM":2,"MO":5,"ND":3,"NE":4,"OH":1,"WI":1,"ME":3,"VT":2,"RI":1,"KY":1,"MA":1,"CT":1,"WV":1,"NH":1,"AL":1,"LA":2,"PA":1}},"2008":{"c":141,"t":{"Severe Storm":53,"Fire":60,"Hurricane":14,"Snowstorm":4,"Severe Ice Storm":7,"Flood":3},"s":{"FL":4,"WA":3,"CA":22,"LA":4,"TX":28,"AL":3,"MS":4,"OH":1,"WI":2,"IL":3,"KS":3,"MO":7,"OK":9,"OR":2,"AZ":1,"CO":3,"NM":4,"NC":1,"HI":2,"AK":1,"IN":4,"AR":4,"VT":3,"ME":2,"NH":2,"ID":1,"NE":4,"MI":1,"SD":2,"MN":1,"WV":1,"MT":1,"IA":2,"GA":2,"KY":2,"TN":1,"NV":1}},"2009":{"c":125,"t":{"Earthquake":1,"Severe Storm":53,"Snowstorm":2,"Severe Ice Storm":8,"Other":1,"Fire":54,"Flood":3,"Tornado":1,"Hurricane":2},"s":{"AS":1,"FL":4,"OK":11,"MN":2,"MO":4,"KY":5,"AR":5,"DC":1,"NY":3,"ME":3,"NH":3,"MA":2,"CA":15,"OR":3,"MT":1,"AZ":2,"HI":2,"UT":1,"WA":5,"NV":1,"AK":2,"NM":1,"SC":1,"TX":16,"CO":1,"KS":4,"TN":4,"IA":1,"NE":1,"IL":3,"SD":2,"AL":3,"WV":1,"MS":1,"GA":2,"IN":2,"ND":1,"VT":1,"VI":1,"OH":1,"NC":1,"PR":1}},"2010":{"c":109,"t":{"Severe Storm":58,"Hurricane":6,"Other":1,"Flood":9,"Fire":21,"Tornado":1,"Earthquake":1,"Snowstorm":11,"Severe Ice Storm":1},"s":{"IL":1,"NC":2,"MA":3,"TX":2,"RI":2,"MN":3,"ND":4,"OK":5,"AZ":5,"PR":2,"KY":2,"UT":1,"CA":9,"CO":2,"WA":2,"ID":2,"NV":1,"HI":1,"NM":3,"VI":1,"SD":6,"TN":2,"MO":1,"WI":1,"KS":3,"IA":4,"NE":4,"WY":1,"MT":1,"ME":2,"WV":4,"MS":2,"NH":2,"MD":2,"AL":3,"VA":3,"CT":1,"NY":2,"PA":1,"NJ":4,"DE":1,"DC":2,"AR":2,"AK":1,"LA":1}},"2011":{"c":236,"t":{"Hurricane":29,"Flood":25,"Severe Storm":58,"Fire":114,"Tornado":2,"Tsunami":3,"Snowstorm":5},"s":{"DE":2,"DC":2,"KS":4,"MD":2,"NJ":4,"ME":2,"NY":7,"PA":5,"TX":57,"MA":4,"RI":2,"NH":3,"VA":4,"CT":3,"IA":4,"PR":4,"LA":2,"NE":5,"MO":5,"UT":2,"MN":4,"KY":2,"WY":1,"TN":6,"OH":1,"VT":5,"AR":2,"NC":5,"MS":3,"AL":2,"ND":3,"OK":30,"CA":6,"NV":1,"WA":2,"MT":2,"NM":9,"CO":3,"GA":5,"AZ":5,"AK":2,"FL":1,"IN":1,"IL":2,"ID":1,"SD":2,"HI":1,"WI":2,"OR":2,"VI":2}},"2012":{"c":103,"t":{"Fire":53,"Severe Storm":37,"Hurricane":6,"Flood":4,"Earthquake":2,"Coastal Storm":1},"s":{"CA":3,"WA":10,"ID":2,"MT":6,"WY":4,"SD":2,"NE":1,"OK":9,"AL":2,"MS":2,"LA":3,"NM":6,"OH":2,"WI":1,"MD":2,"DC":2,"VA":3,"WV":4,"NJ":3,"FL":1,"CO":5,"VT":2,"NH":3,"KS":1,"HI":1,"TN":1,"IN":1,"KY":1,"OR":1,"AK":2,"UT":6,"MA":2,"CT":2,"PR":1,"MN":1,"NV":4,"TX":1}},"2013":{"c":111,"t":{"Fire":32,"Freezing":1,"Severe Storm":29,"Flood":16,"Other":2,"Snowstorm":1,"Severe Ice Storm":1,"Hurricane":26,"Mud/Landslide":1,"Tornado":1,"Terrorist":1},"s":{"CA":8,"WA":3,"MT":3,"OR":4,"ID":2,"UT":2,"NV":1,"AZ":4,"CO":9,"NM":3,"NC":2,"MO":2,"AR":3,"WI":1,"VT":2,"NH":4,"FL":2,"SD":3,"TX":2,"IA":4,"WV":3,"MN":2,"NY":4,"ND":4,"MI":1,"IL":1,"KS":1,"MA":4,"OK":2,"ME":1,"RI":3,"CT":4,"LA":1,"PA":2,"OH":1,"DC":2,"AK":2,"VA":2,"MD":2,"DE":2,"NJ":2,"MS":1}},"2014":{"c":85,"t":{"Fire":34,"Mud/Landslide":2,"Severe Storm":26,"Earthquake":1,"Flood":10,"Tornado":2,"Severe Ice Storm":9,"Chemical":1},"s":{"CA":17,"OR":6,"WA":12,"UT":1,"TX":2,"OK":2,"KY":1,"HI":1,"AS":1,"GU":1,"ND":2,"TN":2,"IA":3,"SD":2,"NE":4,"NY":1,"VT":2,"FL":1,"MS":1,"AR":2,"IN":1,"MT":1,"MD":1,"NC":2,"SC":2,"GA":2,"AK":2,"NM":2,"KS":1,"PA":2,"AL":1,"WV":1,"MI":1,"MN":1,"IL":1}},"2015":{"c":78,"t":{"Fire":35,"Severe Storm":24,"Typhoon":2,"Flood":10,"Snowstorm":3,"Severe Ice Storm":2,"Tornado":1,"Volcanic Eruption":1},"s":{"OR":6,"WA":13,"CA":8,"ID":4,"AZ":4,"AK":2,"KY":4,"MO":2,"SD":2,"WV":5,"MP":1,"IA":1,"VT":2,"NJ":1,"KS":1,"CO":1,"LA":1,"WY":1,"AR":1,"GU":1,"TX":1,"GA":1,"MA":1,"CT":1,"RI":1,"TN":1,"NH":1,"ME":1,"MS":1,"NY":1,"NV":1,"HI":1,"NM":2,"MT":1,"NE":1,"OK":1}},"2016":{"c":84,"t":{"Severe Storm":19,"Fire":40,"Flood":15,"Snowstorm":5,"Hurricane":1,"Tornado":1,"Severe Ice Storm":1,"Coastal Storm":1,"Toxic Substances":1},"s":{"AL":1,"OR":3,"WA":8,"ID":3,"CA":13,"MT":3,"NV":2,"WY":3,"NM":2,"CO":1,"UT":1,"AZ":1,"NH":1,"OK":7,"KS":2,"TX":6,"GA":1,"MS":2,"NJ":1,"VA":1,"IA":1,"FL":1,"LA":3,"WV":1,"AR":2,"PA":1,"DE":1,"MD":2,"DC":1,"AK":2,"MO":2,"SC":2,"MI":1,"WI":1,"KY":1}},"2017":{"c":135,"t":{"Severe Storm":24,"Fire":61,"Tornado":4,"Flood":14,"Hurricane":27,"Snowstorm":2,"Severe Ice Storm":1,"Mud/Landslide":1,"Dam/Levee Break":1},"s":{"CA":14,"MT":8,"UT":3,"OR":6,"WA":4,"NV":7,"AZ":3,"NM":1,"GA":8,"FL":9,"OK":6,"KS":10,"TN":6,"KY":2,"NC":4,"CO":2,"LA":2,"ND":1,"VI":4,"PR":4,"IA":2,"ID":3,"TX":1,"VT":1,"NH":2,"WY":2,"MI":1,"NE":2,"AR":1,"MO":1,"MS":2,"SD":1,"PA":1,"VA":1,"MN":1,"WI":1,"SC":4,"HI":1,"NY":1,"WV":1,"AL":1}},"2018":{"c":132,"t":{"Fire":70,"Typhoon":2,"Snowstorm":3,"Hurricane":18,"Severe Storm":16,"Flood":17,"Coastal Storm":3,"Volcanic Eruption":1,"Mud/Landslide":1,"Tornado":1},"s":{"UT":3,"WY":2,"WA":10,"SD":2,"CA":29,"TX":7,"ID":2,"CO":3,"NV":1,"NM":3,"AZ":3,"OK":4,"MP":2,"NH":3,"HI":5,"SC":3,"NC":3,"IA":2,"AK":3,"MN":1,"NE":2,"WI":2,"MI":1,"VT":2,"MA":2,"WV":2,"MD":2,"ME":2,"AL":3,"KY":2,"OH":1,"AS":2,"MS":2,"NY":1,"MT":1,"LA":2,"OR":6,"VA":1,"FL":1,"KS":1,"NJ":1,"CT":1,"IN":1}},"2019":{"c":102,"t":{"Fire":17,"Severe Storm":28,"Hurricane":17,"Flood":30,"Tornado":2,"Typhoon":4,"Earthquake":3,"Coastal Storm":1},"s":{"UT":1,"NV":3,"AK":5,"TX":3,"MT":3,"OR":3,"AZ":3,"NM":1,"CA":11,"MS":3,"OK":4,"SC":2,"LA":5,"IL":1,"AR":3,"WI":2,"NH":1,"WV":1,"MO":2,"KS":4,"SD":3,"OH":2,"NE":2,"VT":1,"ND":1,"ID":1,"MN":2,"GU":2,"IA":2,"KY":1,"TN":1,"AL":4,"WA":1,"NC":2,"VA":2,"CT":1,"PA":1,"MP":2,"GA":3,"FL":4,"NY":1,"VI":1,"PR":1}},"2020":{"c":315,"t":{"Fire":88,"Biological":165,"Hurricane":22,"Severe Storm":23,"Tornado":3,"Flood":6,"Earthquake":3,"Dam/Levee Break":2,"Coastal Storm":1,"Typhoon":2},"s":{"WY":4,"CA":29,"OR":21,"WA":14,"MT":8,"AZ":9,"CO":5,"NV":7,"UT":7,"FL":11,"OK":20,"NM":13,"HI":5,"AL":8,"IA":5,"PR":7,"LA":7,"AR":5,"ND":5,"MS":9,"TN":6,"MI":4,"NC":5,"SC":4,"KY":3,"AS":2,"ID":2,"AK":2,"VT":3,"MN":4,"SD":7,"DE":2,"ME":3,"NE":6,"WI":3,"WV":2,"NH":2,"IN":2,"VI":3,"VA":2,"MP":4,"OH":2,"PA":2,"RI":3,"KS":5,"DC":2,"GA":2,"CT":3,"MA":4,"GU":2,"MD":2,"MO":3,"IL":2,"NJ":2,"TX":6,"NY":5}},"2021":{"c":123,"t":{"Fire":47,"Severe Storm":14,"Flood":8,"Hurricane":32,"Other":4,"Severe Ice Storm":12,"Tornado":1,"Snowstorm":1,"Biological":2,"Mud/Landslide":1,"Coastal Storm":1},"s":{"CA":14,"WA":10,"OR":4,"ID":2,"MT":6,"HI":2,"NV":3,"AZ":5,"UT":4,"NM":1,"SD":1,"CO":3,"NH":1,"VT":2,"PA":1,"NC":3,"NE":1,"NY":4,"NJ":4,"ND":2,"MO":1,"LA":10,"TN":4,"MI":1,"WV":2,"VA":1,"GA":2,"MS":5,"AL":3,"KY":2,"OK":3,"TX":3,"AK":1,"MD":1,"CT":2,"PR":1,"DE":1,"FL":4,"MA":1,"RI":1,"DC":1}},"2022":{"c":98,"t":{"Fire":41,"Hurricane":10,"Severe Storm":24,"Flood":10,"Mud/Landslide":1,"Snowstorm":3,"Coastal Storm":1,"Tornado":6,"Other":2},"s":{"WA":5,"OR":2,"CA":6,"ID":2,"NV":1,"TX":8,"AK":7,"NM":7,"NE":3,"AZ":4,"FL":5,"KS":3,"CO":2,"OK":3,"SD":3,"VA":3,"PR":3,"AS":1,"MN":3,"MO":2,"KY":4,"ND":1,"MT":1,"MA":1,"ME":1,"TN":3,"IA":1,"HI":1,"AR":1,"AL":1,"CT":1,"DE":1,"MS":2,"NY":1,"NH":1,"RI":1,"SC":1,"IL":1,"VI":1}},"2023":{"c":114,"t":{"Fire":32,"Flood":23,"Severe Storm":28,"Tropical Storm":6,"Hurricane":10,"Winter Storm":9,"Tornado":1,"Snowstorm":2,"Earthquake":1,"Other":1,"Mud/Landslide":1},"s":{"LA":5,"WA":9,"MT":2,"HI":6,"AZ":3,"NM":2,"RI":1,"KS":1,"NE":1,"OK":6,"OR":4,"WY":1,"TN":6,"IA":1,"AK":2,"NJ":1,"ME":5,"SD":4,"ND":2,"MP":2,"GU":2,"CA":9,"TX":1,"AR":2,"VT":3,"NY":4,"FL":6,"SC":2,"IL":2,"NC":1,"MA":1,"MO":1,"NH":2,"GA":2,"CO":1,"MS":2,"MN":1,"KY":2,"AL":2,"NV":1,"IN":1,"WV":2}},"2024":{"c":162,"t":{"Severe Storm":43,"Fire":56,"Straight-Line Winds":1,"Hurricane":8,"Winter Storm":4,"Flood":21,"Tornado":4,"Tropical Storm":22,"Other":1,"Mud/Landslide":2},"s":{"PR":2,"OR":13,"MT":4,"NM":5,"OK":5,"TX":4,"AZ":5,"NE":4,"ME":3,"IA":3,"OH":1,"WA":7,"KS":5,"CA":15,"VT":7,"RI":3,"ND":1,"UT":2,"ID":3,"FL":5,"SC":4,"NC":3,"MP":1,"GU":1,"VI":2,"GA":4,"VA":1,"PA":1,"WY":4,"CO":3,"AL":1,"NV":5,"NY":5,"CT":3,"IL":2,"LA":2,"NH":4,"SD":1,"KY":2,"MO":1,"MN":1,"HI":1,"TN":3,"MS":1,"AR":2,"WV":3,"MA":1,"AK":2,"MI":1}},"2025":{"c":143,"t":{"Fire":82,"Severe Storm":31,"Winter Storm":2,"Flood":14,"Severe Ice Storm":1,"Tropical Depression":1,"Tropical Storm":7,"Hurricane":4,"Mud/Landslide":1},"s":{"NC":7,"KS":4,"WV":3,"TX":8,"VA":2,"NY":2,"NM":7,"KY":6,"NJ":1,"AR":3,"IA":1,"OK":18,"NE":2,"MO":6,"MS":1,"SC":4,"TN":3,"NV":4,"MI":1,"IN":1,"OR":7,"CA":8,"CO":3,"AZ":4,"AK":8,"WY":2,"HI":2,"ND":4,"MT":3,"CT":1,"VI":1,"WI":1,"SD":2,"ID":1,"UT":3,"FL":4,"WA":3,"MN":1,"PR":1}},"2026":{"c":53,"t":{"Fire":18,"Severe Storm":4,"Straight-Line Winds":4,"Flood":6,"Winter Storm":17,"Other":1,"Tropical Storm":2,"Hurricane":1},"s":{"NE":2,"ND":1,"MN":1,"WA":2,"MT":3,"KS":1,"OK":10,"LA":2,"TX":2,"AK":2,"SC":2,"GA":3,"MS":2,"AR":1,"TN":2,"KY":1,"NC":1,"WV":1,"VA":1,"IN":1,"MD":1,"SD":2,"DC":1,"ID":1,"OR":1,"MP":2,"GU":1,"HI":1,"FL":2}}},"types":{"Fire":1416,"Severe Storm":891,"Hurricane":325,"Flood":261,"Biological":167,"Snowstorm":97,"Severe Ice Storm":63,"Tornado":40,"Tropical Storm":37,"Winter Storm":32,"Typhoon":24,"Other":22,"Earthquake":19,"Coastal Storm":19,"Mud/Landslide":11,"Straight-Line Winds":5,"Freezing":4,"Dam/Levee Break":4,"Tsunami":3,"Volcanic Eruption":2,"Terrorist":2,"Tropical Depression":1,"Toxic Substances":1,"Chemical":1,"Drought":1},"states":{"CA":319,"TX":216,"OK":206,"WA":158,"OR":120,"FL":111,"NM":103,"AZ":89,"CO":86,"MT":85,"NV":83,"KS":70,"NY":68,"SD":67,"LA":66,"AK":66,"TN":66,"KY":63,"NE":59,"MS":58,"MO":55,"AL":54,"WV":52,"NC":51,"GA":49,"AR":49,"HI":48,"UT":48,"ND":48,"NH":47,"VA":47,"ME":45,"IA":45,"VT":45,"SC":41,"MN":40,"ID":39,"WY":38,"MA":38,"NJ":37,"PR":33,"IL":31,"OH":30,"CT":30,"PA":28,"IN":28,"WI":25,"MD":23,"RI":21,"VI":20,"DC":20,"MP":19,"MI":19,"DE":16,"GU":14,"AS":10,"FM":6}};
 
@@ -1245,85 +1247,21 @@ function formatDollars(n) {
 }
 
 async function loadDisasterCosts(yearData) {
-  try {
-    // Fetch cost summaries from FEMA
-    const url = `${FEMA_COST_API}?$select=disasterNumber,totalAmountIhpApproved,totalAmountHaApproved,totalAmountOnaApproved,totalObligatedAmountPa,totalObligatedAmountHmgp&$top=10000`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(r.status);
-    const data = await r.json();
-    const summaries = data.FemaWebDisasterSummaries || [];
+  // FEMA FemaWebDisasterSummaries API is degraded — render from embedded static data
+  const costByYear = {};
+  FEMA_COST_STATIC.byYear.forEach(d => { costByYear[d.year] = d.totalCost; });
 
-    // Build cost lookup by disaster number
-    const costMap = {};
-    summaries.forEach(s => {
-      const total = (s.totalAmountIhpApproved || 0) + (s.totalAmountHaApproved || 0)
-        + (s.totalAmountOnaApproved || 0) + (s.totalObligatedAmountPa || 0)
-        + (s.totalObligatedAmountHmgp || 0);
-      if (total > 0) costMap[s.disasterNumber] = total;
-    });
+  const costByType = {};
+  FEMA_COST_STATIC.byType.forEach(d => { costByType[d.type] = d.totalCost; });
 
-    // Join with declaration records for year/type/state info
-    const allRecords = yearData.flatMap(d => d.records);
-    _costData = summaries;
+  const costByState = {};
+  FEMA_COST_STATIC.byState.forEach(d => { costByState[d.state] = { total: d.totalCost }; });
 
-    // Cost by year
-    const costByYear = {};
-    const seenDn = new Set();
-    allRecords.forEach(rec => {
-      const dn = rec.disasterNumber;
-      if (seenDn.has(dn) || !costMap[dn]) return;
-      seenDn.add(dn);
-      const yr = yearData.find(y => y.records.some(r => r.disasterNumber === dn));
-      if (yr) costByYear[yr.year] = (costByYear[yr.year] || 0) + costMap[dn];
-    });
+  document.getElementById('totalCost').textContent = formatDollars(FEMA_TOTAL_AID);
 
-    // Cost by incident type
-    const costByType = {};
-    seenDn.clear();
-    allRecords.forEach(rec => {
-      const dn = rec.disasterNumber;
-      if (seenDn.has(dn) || !costMap[dn]) return;
-      seenDn.add(dn);
-      const t = rec.incidentType || 'Other';
-      costByType[t] = (costByType[t] || 0) + costMap[dn];
-    });
-
-    // Cost by state
-    const costByState = {};
-    allRecords.forEach(rec => {
-      if (!costMap[rec.disasterNumber]) return;
-      const key = `${rec.disasterNumber}-${rec.state}`;
-      if (!costByState[rec.state]) costByState[rec.state] = { total: 0, seen: new Set() };
-      if (!costByState[rec.state].seen.has(rec.disasterNumber)) {
-        costByState[rec.state].seen.add(rec.disasterNumber);
-        costByState[rec.state].total += costMap[rec.disasterNumber];
-      }
-    });
-
-    // Total federal aid
-    let grandTotal = 0;
-    Object.values(costMap).forEach(v => { grandTotal += v; });
-    const costEl = document.getElementById('totalCost');
-    costEl.textContent = formatDollars(grandTotal);
-
-    renderCostYearChart(costByYear);
-    renderCostTypeChart(costByType);
-    renderCostStatesChart(costByState);
-
-  } catch(e) {
-    console.warn('FEMA cost fetch failed:', e);
-    document.getElementById('totalCost').textContent = formatDollars(FEMA_TOTAL_AID);
-    ['skelCostYear', 'skelCostType', 'skelCostStates'].forEach(id => hideSkeleton(id));
-    ['chartCostYear', 'chartCostType', 'chartCostStates'].forEach(id => {
-      const canvas = document.getElementById(id);
-      if (canvas) {
-        const msg = document.createElement('div');
-        msg.className = 'chart-unavailable';
-        msg.innerHTML = '<span>📡</span>Data temporarily unavailable';
-        canvas.parentNode.appendChild(msg);
-      }
-    });
-  }
+  renderCostYearChart(costByYear);
+  renderCostTypeChart(costByType);
+  renderCostStatesChart(costByState);
 }
 
 function renderCostYearChart(costByYear) {
