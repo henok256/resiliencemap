@@ -660,6 +660,7 @@ const NOAA_API  = 'https://api.weather.gov/alerts/active?status=actual&message_t
 const USGS_API  = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.5&orderby=time&limit=200&minlatitude=17&maxlatitude=72&minlongitude=-180&maxlongitude=-65';
 const NIFC_API  = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,poly_GISAcres,attr_PercentContained,attr_FireCause,attr_FireDiscoveryDateTime&outSR=4326&f=geojson&resultRecordCount=500';
 const HIFLD_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&outFields=ID,NAME,ADDRESS,CITY,STATE,BEDS,STATUS,LATITUDE,LONGITUDE&outSR=4326&f=geojson&resultRecordCount=2000';
+const HIFLD_COUNT_API = 'https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/Hospitals2/FeatureServer/0/query?where=1%3D1&returnCountOnly=true&f=json';
 const FEMA_API  = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries';
 const FEMA_COST_API = 'https://www.fema.gov/api/open/v1/FemaWebDisasterSummaries';
 
@@ -887,13 +888,16 @@ function renderAlertsList(items) {
 // ── USGS Earthquakes ──
 async function loadQuakes() {
   try {
-    const r = await fetch(USGS_API);
+    const starttime = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const countUrl = `https://earthquake.usgs.gov/fdsnws/event/1/count?format=text&minmagnitude=2.5&starttime=${starttime}&minlatitude=17&maxlatitude=72&minlongitude=-180&maxlongitude=-65`;
+    const [r, countR] = await Promise.all([fetch(USGS_API), fetch(countUrl)]);
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     const features = data.features || [];
+    const totalCount = countR.ok ? parseInt(await countR.text(), 10) || features.length : features.length;
 
     layers.quakes.clearLayers();
-    animateCounter('cntQuakes', features.length);
+    animateCounter('cntQuakes', totalCount);
 
     features.forEach(f => {
       const [lon, lat, depth] = f.geometry.coordinates;
@@ -934,13 +938,16 @@ async function loadQuakes() {
 // ── NIFC Wildfires ──
 async function loadWildfires() {
   try {
-    const r = await fetch(NIFC_API);
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const countUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0/query?where=attr_FireDiscoveryDateTime+>+DATE+'${since}'&returnCountOnly=true&f=json`;
+    const [r, countR] = await Promise.all([fetch(NIFC_API), fetch(countUrl)]);
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     const features = data.features || [];
+    const totalCount = countR.ok ? (await countR.json()).count ?? features.length : features.length;
 
     layers.wildfires.clearLayers();
-    animateCounter('cntWildfires', features.length);
+    animateCounter('cntWildfires', totalCount);
 
     features.forEach(f => {
       if (!f.geometry) return;
@@ -973,13 +980,14 @@ async function loadWildfires() {
 // ── HIFLD Infrastructure (Hospitals) ──
 async function loadInfrastructure() {
   try {
-    const r = await fetch(HIFLD_API);
+    const [r, countR] = await Promise.all([fetch(HIFLD_API), fetch(HIFLD_COUNT_API)]);
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     const features = data.features || [];
+    const totalCount = countR.ok ? (await countR.json()).count ?? features.length : features.length;
 
     layers.infra.clearLayers();
-    animateCounter('cntInfra', features.length);
+    animateCounter('cntInfra', totalCount);
 
     features.forEach(f => {
       if (!f.geometry) return;
