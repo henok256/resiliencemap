@@ -303,6 +303,13 @@
     }
     .chart-wrap { flex: 1; position: relative; }
     .chart-wrap canvas { width: 100% !important; height: 100% !important; }
+    .chart-unavailable {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 10px; text-align: center; gap: 4px;
+    }
+    .chart-unavailable span { font-size: 18px; opacity: .5; }
 
     /* Chart skeleton loaders */
     .skeleton {
@@ -1015,7 +1022,7 @@ async function fetchYearCounts() {
 
   for (let yr = startYear; yr <= currentYear; yr++) {
     const filter = `declarationDate ge '${yr}-01-01T00:00:00.000Z' and declarationDate lt '${yr+1}-01-01T00:00:00.000Z'`;
-    const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$select=disasterNumber,state,incidentType&$top=10000&$metadata=false`;
+    const url = `${FEMA_API}?$filter=${encodeURIComponent(filter)}&$select=disasterNumber,state,incidentType&$top=10000&$format=json`;
     promises.push(
       fetch(url).then(r => r.ok ? r.json() : null).then(d => {
         if (!d) return { year: yr, count: 0, records: [] };
@@ -1215,9 +1222,16 @@ async function loadDisasterCosts(yearData) {
   } catch(e) {
     console.warn('FEMA cost fetch failed:', e);
     document.getElementById('totalCost').textContent = 'N/A';
-    hideSkeleton('skelCostYear');
-    hideSkeleton('skelCostType');
-    hideSkeleton('skelCostStates');
+    ['skelCostYear', 'skelCostType', 'skelCostStates'].forEach(id => hideSkeleton(id));
+    ['chartCostYear', 'chartCostType', 'chartCostStates'].forEach(id => {
+      const canvas = document.getElementById(id);
+      if (canvas) {
+        const msg = document.createElement('div');
+        msg.className = 'chart-unavailable';
+        msg.innerHTML = '<span>📡</span>Data temporarily unavailable';
+        canvas.parentNode.appendChild(msg);
+      }
+    });
   }
 }
 
