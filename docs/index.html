@@ -1256,8 +1256,11 @@ function renderTypeChart(typeMap) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { bottom: 24 } },
-      plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } } },
+      layout: { padding: { top: 24, bottom: 24 } },
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
+        tooltip: { callbacks: { title: () => [], label: ctx => ' ' + ctx.label + ': ' + ctx.raw.toLocaleString() } },
+      },
     },
   });
 }
@@ -1504,10 +1507,10 @@ function renderCostTypeChart(costByType) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { bottom: 24 } },
+      layout: { padding: { top: 24, bottom: 24 } },
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
-        tooltip: { callbacks: { label: ctx => ctx.label + ': $' + ctx.raw.toFixed(1) + 'B' } },
+        tooltip: { callbacks: { title: () => [], label: ctx => ' ' + ctx.label + ': $' + ctx.raw.toFixed(1) + 'B' } },
       },
     },
   });
