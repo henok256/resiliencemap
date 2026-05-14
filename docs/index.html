@@ -1256,6 +1256,7 @@ function renderTypeChart(typeMap) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { bottom: 24 } },
       plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } } },
     },
   });
@@ -1503,6 +1504,7 @@ function renderCostTypeChart(costByType) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { bottom: 24 } },
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
         tooltip: { callbacks: { label: ctx => ctx.label + ': $' + ctx.raw.toFixed(1) + 'B' } },
