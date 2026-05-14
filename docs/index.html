@@ -1221,7 +1221,7 @@ function renderYearlyChart(yearData) {
   chartYearlyInst = new Chart(document.getElementById('chartYearly'), {
     type: 'bar',
     data: {
-      labels: years,
+      labels: years.map(y => "'" + String(y).slice(2)),
       datasets: [{
         label: 'Declarations',
         data: counts,
@@ -1232,9 +1232,9 @@ function renderYearlyChart(yearData) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: (items) => years[items[0].dataIndex] } } },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0, minRotation: 0 } },
         y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 } } },
       },
     },
@@ -1464,7 +1464,7 @@ function renderCostYearChart(costByYear) {
   chartCostYearInst = new Chart(document.getElementById('chartCostYear'), {
     type: 'bar',
     data: {
-      labels: years,
+      labels: years.map(y => "'" + String(y).slice(2)),
       datasets: [{
         label: 'Federal Aid ($B)',
         data: amounts,
@@ -1477,10 +1477,10 @@ function renderCostYearChart(costByYear) {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
+        tooltip: { callbacks: { title: (items) => years[items[0].dataIndex], label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0, minRotation: 0 } },
         y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: v => '$' + v + 'B' } },
       },
     },
