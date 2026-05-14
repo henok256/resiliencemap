@@ -11,8 +11,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.models.hazard import (
-    DisasterDeclaration,
     DisasterCost,
+    DisasterDeclaration,
     RiskScore,
     StormAlert,
 )
