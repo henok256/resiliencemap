@@ -835,15 +835,16 @@ function makeDomTooltip(fmt) {
     const pt = tooltip.dataPoints?.[0];
     if (!pt) return;
     _ttip.textContent = pt.label + ': ' + fmt(pt.raw);
+    _ttip.style.display = 'block';
     const r = chart.canvas.getBoundingClientRect();
+    const tw = _ttip.offsetWidth, th = _ttip.offsetHeight;
     let x = r.left + tooltip.caretX + 14;
-    let y = r.top  + tooltip.caretY - 14;
-    // keep within viewport
-    if (x + 200 > window.innerWidth)  x = r.left + tooltip.caretX - 214;
-    if (y < 0) y = r.top + tooltip.caretY + 8;
+    let y = r.top  + tooltip.caretY - th / 2;
+    if (x + tw + 4 > window.innerWidth)  x = r.left + tooltip.caretX - tw - 14;
+    if (y < 4)                            y = 4;
+    if (y + th + 4 > window.innerHeight) y = window.innerHeight - th - 4;
     _ttip.style.left = x + 'px';
     _ttip.style.top  = y + 'px';
-    _ttip.style.display = 'block';
   };
 }
 
