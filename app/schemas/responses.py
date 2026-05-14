@@ -26,6 +26,15 @@ class CountyRiskResponse(BaseModel):
     tracts: list[RiskScoreResponse]
 
 
+class StateRiskResponse(BaseModel):
+    state_fips: str
+    county_count: int
+    tract_count: int
+    avg_composite_score: float
+    max_composite_score: float
+    top_tracts: list[RiskScoreResponse]
+
+
 class StormAlertResponse(BaseModel):
     noaa_id: str
     event: str

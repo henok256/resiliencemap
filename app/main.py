@@ -18,7 +18,7 @@ app = FastAPI(
         "Provides composite risk scores per US census tract derived from "
         "FEMA flood zones, USGS seismic data, and NOAA storm alerts."
     ),
-    version="0.1.0",
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )

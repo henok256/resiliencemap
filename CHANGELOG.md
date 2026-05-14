@@ -7,6 +7,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.0.0] — General Availability — 2025
+
+### Added
+- **State-level risk API endpoint** (`GET /api/v1/risk/state/{state_fips}`)
+  - Aggregates tract-level scores across all counties in a state
+  - Returns county count, tract count, avg/max composite scores, and top N tracts
+  - Covers all 50 states + DC; 404 when scoring data is not yet available
+- **State-filtered analytics on dashboard** (`docs/index.html`)
+  - Searching a state filters the yearly declarations chart to that state's history
+  - State summary card shows total declarations, peak year, last-5-year count
+  - Top 10 States bar chart highlights the selected state in blue
+  - Population exposure counter scopes to selected state
+- **Shareable state URLs** — selecting a state updates `#state=TX` in the URL; page restores state on load
+- **Integration test suite** (`tests/integration/`) — 41 tests covering all API route groups
+  - Health, Risk (county/tract/state/top), Alerts, Hazards GeoJSON, Disasters (declarations, trends, costs)
+  - SA 2.0 savepoint-based transaction isolation; no data persists between tests
+- **National impact statement** (`docs/IMPACT.md`)
+  - Maps platform to Stafford Act, FEMA Strategic Plan 2022–2026, PPD-8, and BIL BRIC program
+  - Quantified coverage: 109M+ people, $372.6B tracked, 84k+ tracts, 6 federal agencies
+- **Monthly FEMA aid auto-refresh** (`.github/workflows/update-fema-aid.yml`)
+  - Downloads FEMA bulk CSVs on the 1st of each month
+  - Calculates 2000-present total and updates `FEMA_TOTAL_AID` constant via `sed`
+  - Commits and pushes only when the value changes
+
+### Fixed
+- **SVI scoring placeholder removed** — `compute_social_vulnerability_score` now queries the `svi_scores` table populated by `ingestion.census.ingest_svi`; falls back to 0.5 (neutral) only when SVI data has not been ingested
+- **Risk scoring weights synced across all files** — docs previously showed three different weight sets; code is now authoritative: Flood 30% / Seismic 20% / Storm 20% / Wildfire 20% / SVI 10%
+- **FEMA API degradation** — replaced live `$filter` queries (returning 503) with embedded static dataset (`FEMA_STATIC`) built from FEMA bulk CSV download
+- **Live hazard counters** — earthquakes, fires, and facilities now show real counts via parallel count-only endpoint calls instead of hardcoded API cap values
+- **Federal Disaster Aid "N/A"** — replaced with `FEMA_TOTAL_AID` static constant ($372.6B) auto-refreshed monthly
+- **FEMA NFHL WMS 404** — updated endpoint path from `gis/nfhl/rest` to `arcgis/rest`
+- **`svi_scores` table** added to `init_db.sql` so it is created on first Docker startup
+
+### Changed
+- **README** rewritten with national impact framing: Mission section, National Scale & Impact metrics table, The Problem This Solves section
+- **CONTRIBUTING.md** updated with mission alignment section, "Why It Matters" column in contribution areas, non-code contribution paths, and citation section
+- **`docs/methodology.md`** updated: added wildfire as a scored component with full methodology section; corrected all component weights
+
+---
+
 ## [0.3.0] — Phase 3 — 2025
 
 ### Added
@@ -68,7 +110,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Seismic score: magnitude²/distance proximity model
   - Storm score: NOAA severity-weighted alert intersection
   - Social vulnerability: CDC/ATSDR SVI (Phase 2 placeholder)
-  - Weighted composite: 35% flood / 25% seismic / 25% storm / 15% SVI
+  - Weighted composite: 30% flood / 20% seismic / 20% storm / 20% wildfire / 10% SVI
 - **FastAPI REST API** with endpoints:
   - `GET /api/v1/risk/county/{fips}` — county risk summary
   - `GET /api/v1/risk/tract/{geoid}` — single tract risk score

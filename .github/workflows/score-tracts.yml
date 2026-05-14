@@ -1,0 +1,101 @@
+name: Automated Tract Risk Scoring
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # Every Sunday at 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      state_fips:
+        description: '2-digit state FIPS to score (leave blank for all states)'
+        required: false
+        default: ''
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_DB: resiliencemap
+          POSTGRES_USER: resiliencemap
+          POSTGRES_PASSWORD: resiliencemap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://resiliencemap:resiliencemap@localhost:5432/resiliencemap
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system deps (GDAL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Initialize database schema
+        run: psql "$DATABASE_URL" -f scripts/init_db.sql
+
+      - name: Ingest census tracts (all states)
+        run: python -m ingestion.census.ingest_tracts
+
+      - name: Ingest FEMA flood zones
+        run: python -m ingestion.fema.ingest_flood_zones
+
+      - name: Ingest USGS earthquakes
+        run: python -m ingestion.usgs.ingest_earthquakes
+
+      - name: Ingest NOAA storm alerts
+        run: python -m ingestion.noaa.ingest_alerts
+
+      - name: Ingest NIFC wildfires
+        run: python -m ingestion.nifc.ingest_wildfires
+
+      - name: Ingest CDC SVI scores
+        run: python -m ingestion.census.ingest_svi
+
+      - name: Run risk scoring
+        run: |
+          if [ -n "${{ github.event.inputs.state_fips }}" ]; then
+            echo "Scoring state FIPS: ${{ github.event.inputs.state_fips }}"
+            python -m processing.score_tracts --state "${{ github.event.inputs.state_fips }}"
+          else
+            echo "Scoring all states"
+            python3 - <<'EOF'
+          import subprocess, sys
+          from ingestion.census.ingest_tracts import ALL_STATE_FIPS
+          failed = []
+          for fips in ALL_STATE_FIPS:
+              result = subprocess.run(
+                  [sys.executable, "-m", "processing.score_tracts", "--state", fips],
+                  capture_output=True, text=True
+              )
+              if result.returncode != 0:
+                  failed.append(fips)
+                  print(f"FAILED: {fips}\n{result.stderr}", flush=True)
+              else:
+                  print(f"OK: {fips}", flush=True)
+          if failed:
+              print(f"\n{len(failed)} states failed: {failed}")
+              sys.exit(1)
+          EOF
+          fi
+
+      - name: Report scored tract count
+        run: |
+          psql "$DATABASE_URL" -c "SELECT COUNT(*) AS scored_tracts, ROUND(AVG(composite_score)::numeric, 4) AS avg_score FROM risk_scores;"

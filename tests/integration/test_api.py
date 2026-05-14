@@ -107,6 +107,42 @@ class TestRiskTract:
         assert body["tract_geoid"] == "48201950100"
 
 
+class TestRiskState:
+    def test_404_when_no_data(self, client):
+        r = client.get("/api/v1/risk/state/99")
+        assert r.status_code == 404
+
+    def test_200_when_data_present(self, client, risk_row):
+        r = client.get("/api/v1/risk/state/48")
+        assert r.status_code == 200
+
+    def test_response_shape(self, client, risk_row):
+        body = client.get("/api/v1/risk/state/48").json()
+        assert body["state_fips"] == "48"
+        assert body["tract_count"] == 1
+        assert body["county_count"] == 1
+        assert "avg_composite_score" in body
+        assert "max_composite_score" in body
+        assert isinstance(body["top_tracts"], list)
+
+    def test_top_param_respected(self, client, db):
+        for i in range(5):
+            db.add(RiskScore(
+                tract_geoid=f"3600000{i:04d}",
+                county_fips="36000",
+                flood_score=0.1,
+                seismic_score=0.1,
+                storm_score=0.1,
+                wildfire_score=0.1,
+                social_vulnerability_score=0.1,
+                composite_score=round(0.1 + 0.01 * i, 6),
+                computed_at=datetime.now(UTC),
+            ))
+        db.flush()
+        body = client.get("/api/v1/risk/state/36?top=2").json()
+        assert len(body["top_tracts"]) <= 2
+
+
 class TestRiskTop:
     def test_returns_200(self, client):
         r = client.get("/api/v1/risk/top")
