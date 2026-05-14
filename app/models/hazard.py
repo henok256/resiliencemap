@@ -25,7 +25,9 @@ class CensusTract(Base):
     county_fips: Mapped[str] = mapped_column(String(5), nullable=False, index=True)
     name: Mapped[str | None] = mapped_column(String(100))
     land_area_sqm: Mapped[float | None] = mapped_column(Float)
-    geom: Mapped[bytes] = mapped_column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)
+    geom: Mapped[bytes] = mapped_column(
+        Geometry("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
+    )
 
     __table_args__ = (Index("idx_census_tracts_geom", "geom", postgresql_using="gist"),)
 
@@ -41,7 +43,9 @@ class FloodZone(Base):
     zone_subty: Mapped[str | None] = mapped_column(String(72))
     sfha_tf: Mapped[str | None] = mapped_column(String(1))  # T = in SFHA, F = not
     state_fips: Mapped[str | None] = mapped_column(String(2), index=True)
-    geom: Mapped[bytes] = mapped_column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)
+    geom: Mapped[bytes] = mapped_column(
+        Geometry("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index("idx_flood_zones_geom", "geom", postgresql_using="gist"),)
@@ -58,7 +62,9 @@ class SeismicHazard(Base):
     depth_km: Mapped[float | None] = mapped_column(Float)
     place: Mapped[str | None] = mapped_column(String(255))
     event_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    geom: Mapped[bytes] = mapped_column(Geometry("POINT", srid=4326), nullable=False)
+    geom: Mapped[bytes] = mapped_column(
+        Geometry("POINT", srid=4326, spatial_index=False), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index("idx_seismic_geom", "geom", postgresql_using="gist"),)
@@ -78,7 +84,9 @@ class StormAlert(Base):
     description: Mapped[str | None] = mapped_column(Text)
     effective: Mapped[datetime | None] = mapped_column(DateTime)
     expires: Mapped[datetime | None] = mapped_column(DateTime, index=True)
-    geom: Mapped[bytes | None] = mapped_column(Geometry("MULTIPOLYGON", srid=4326))
+    geom: Mapped[bytes | None] = mapped_column(
+        Geometry("MULTIPOLYGON", srid=4326, spatial_index=False)
+    )
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index("idx_storm_alerts_geom", "geom", postgresql_using="gist"),)
@@ -98,7 +106,9 @@ class WildfireIncident(Base):
     fire_cause: Mapped[str | None] = mapped_column(String(100))
     start_date: Mapped[datetime | None] = mapped_column(DateTime)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime)
-    geom: Mapped[bytes] = mapped_column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)
+    geom: Mapped[bytes] = mapped_column(
+        Geometry("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index("idx_wildfire_geom", "geom", postgresql_using="gist"),)
@@ -181,7 +191,9 @@ class CriticalInfrastructure(Base):
     status: Mapped[str | None] = mapped_column(String(50))
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
-    geom: Mapped[bytes] = mapped_column(Geometry("POINT", srid=4326), nullable=False)
+    geom: Mapped[bytes] = mapped_column(
+        Geometry("POINT", srid=4326, spatial_index=False), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index("idx_infra_geom", "geom", postgresql_using="gist"),)
