@@ -286,8 +286,8 @@
     /* ── Charts panel ── */
     .chart-panel {
       background: var(--bg-secondary); border-top: 1px solid var(--border);
-      height: 220px; flex-shrink: 0;
-      display: flex; gap: 0; overflow: hidden;
+      height: 240px; flex-shrink: 0;
+      display: flex; gap: 0;
       transition: background .3s, border-color .3s;
     }
     .chart-box {
@@ -657,12 +657,13 @@
 
   </aside>
 
-  <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow-y:auto">
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden">
     <div id="loading">
       <div class="spin"></div>
       <p>Fetching live NOAA & USGS data...</p>
     </div>
     <div id="map" style="flex:1"></div>
+    <div id="analyticsWrap" style="flex-shrink:0;overflow-y:auto;max-height:50vh">
     <div class="export-bar">
       <span class="export-bar-label">Analytics & Export</span>
       <button class="export-btn" onclick="exportCSV()">📥 Export CSV</button>
@@ -764,6 +765,7 @@
         </div>
       </div>
     </div>
+    </div><!-- /analyticsWrap -->
   </div>
 </div>
 
