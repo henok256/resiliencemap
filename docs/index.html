@@ -1396,7 +1396,7 @@ Data: FEMA, USGS, NOAA, NIFC, HIFLD, CDC/ATSDR SVI`;
 // ── FEMA Flood Zones (WMS tiles) ──
 function loadFloodLayer() {
   const femaWMS = L.tileLayer.wms(
-    'https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/WMSServer',
+    'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/WMSServer',
     { layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'FEMA NFHL', maxZoom: 20 }
   );
   layers.flood.addLayer(femaWMS);
