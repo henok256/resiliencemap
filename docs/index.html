@@ -247,7 +247,7 @@
     }
 
     /* ── Map ── */
-    #map { flex: 1; }
+    #map { flex: 1; min-height: 300px; }
 
     .leaflet-container { background: var(--bg-secondary); }
     .leaflet-tile-pane { filter: var(--tile-filter); transition: filter .3s; }
@@ -286,7 +286,7 @@
     /* ── Charts panel ── */
     .chart-panel {
       background: var(--bg-secondary); border-top: 1px solid var(--border);
-      height: 200px; flex-shrink: 0;
+      height: 220px; flex-shrink: 0;
       display: flex; gap: 0; overflow: hidden;
       transition: background .3s, border-color .3s;
     }
@@ -657,7 +657,7 @@
 
   </aside>
 
-  <div style="position:relative;flex:1;display:flex;flex-direction:column">
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow-y:auto">
     <div id="loading">
       <div class="spin"></div>
       <p>Fetching live NOAA & USGS data...</p>
