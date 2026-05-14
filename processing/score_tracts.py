@@ -200,18 +200,20 @@ def compute_wildfire_score(tract_geoid: str, db: Session, days_back: int = 365) 
 
 def compute_social_vulnerability_score(tract_geoid: str, db: Session) -> float:
     """
-    Placeholder for CDC/ATSDR Social Vulnerability Index (SVI) score.
+    Return the CDC/ATSDR Social Vulnerability Index (SVI) overall percentile
+    rank for the given census tract (0.0 = least vulnerable, 1.0 = most).
 
-    SVI is a 0–1 composite of income, housing, racial minority status,
-    transportation, and household composition factors.
-
-    Phase 2: ingest actual SVI CSV from:
-    https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html
-
-    For now returns 0.5 (neutral) as a placeholder.
+    Falls back to 0.5 (neutral) if SVI data has not been ingested yet.
+    Populate via: python -m ingestion.census.ingest_svi
     """
-    # TODO Phase 2: join against a svi_scores table populated from CDC data
-    return 0.5
+    result = db.execute(
+        text("SELECT overall_rank FROM svi_scores WHERE geoid = :geoid"),
+        {"geoid": tract_geoid},
+    ).scalar()
+
+    if result is None:
+        return 0.5
+    return float(min(max(result, 0.0), 1.0))
 
 
 def compute_composite_score(

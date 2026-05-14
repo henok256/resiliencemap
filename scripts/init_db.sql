@@ -142,6 +142,17 @@ CREATE TABLE IF NOT EXISTS disaster_costs (
 CREATE INDEX IF NOT EXISTS idx_cost_disaster ON disaster_costs(disaster_number);
 CREATE INDEX IF NOT EXISTS idx_cost_total    ON disaster_costs(total_cost DESC);
 
+-- CDC/ATSDR Social Vulnerability Index scores (one row per tract)
+CREATE TABLE IF NOT EXISTS svi_scores (
+    geoid           CHAR(11) PRIMARY KEY,
+    overall_rank    FLOAT,
+    socioeconomic   FLOAT,
+    household_comp  FLOAT,
+    minority_status FLOAT,
+    housing_trans   FLOAT,
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
 -- Risk scores (one row per tract, updated on each scoring run)
 CREATE TABLE IF NOT EXISTS risk_scores (
     id                        SERIAL PRIMARY KEY,
