@@ -1,0 +1,159 @@
+name: Update Static Dashboard Data
+
+on:
+  schedule:
+    - cron: '0 6 1,15 * *'   # 1st and 15th of every month at 06:00 UTC (~biweekly)
+  workflow_dispatch:           # allow manual trigger from GitHub UI
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download FEMA CSVs
+        run: |
+          curl -fsSL -o decl.csv  'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv'
+          curl -fsSL -o costs.csv 'https://www.fema.gov/api/open/v1/FemaWebDisasterSummaries.csv'
+          echo "decl.csv:  $(wc -l < decl.csv) rows"
+          echo "costs.csv: $(wc -l < costs.csv) rows"
+
+      - name: Process and embed static data
+        run: |
+          python3 - <<'EOF'
+          import csv, json, re, collections
+
+          # ── Load cost data ──────────────────────────────────────────────────
+          costs = {}
+          with open('costs.csv', newline='', encoding='utf-8-sig') as f:
+              for row in csv.DictReader(f):
+                  try:
+                      dn = int(row['disasterNumber'])
+                      total = (float(row.get('totalAmountIhpApproved') or 0) +
+                               float(row.get('totalAmountHaApproved') or 0) +
+                               float(row.get('totalObligatedAmountPa') or 0) +
+                               float(row.get('totalObligatedAmountHmgp') or 0))
+                      costs[dn] = total
+                  except (ValueError, KeyError):
+                      continue
+
+          # ── Load declaration data, build FEMA_STATIC and FEMA_COST_STATIC ──
+          decl_years = collections.defaultdict(lambda: {
+              'c': 0,
+              't': collections.defaultdict(int),
+              's': collections.defaultdict(int),
+          })
+          cost_by_year  = collections.defaultdict(float)
+          cost_by_type  = collections.defaultdict(float)
+          cost_by_state = collections.defaultdict(float)
+          cost_seen     = set()
+
+          with open('decl.csv', newline='', encoding='utf-8-sig') as f:
+              for row in csv.DictReader(f):
+                  try:
+                      dn   = int(row['disasterNumber'])
+                      year = int((row.get('declarationDate') or '')[:4])
+                  except (ValueError, KeyError):
+                      continue
+                  if year < 2000:
+                      continue
+
+                  itype = (row.get('incidentType') or 'Other').strip() or 'Other'
+                  state = (row.get('state') or '').strip()
+
+                  # FEMA_STATIC: count every declaration row
+                  decl_years[year]['c'] += 1
+                  decl_years[year]['t'][itype] += 1
+                  decl_years[year]['s'][state] += 1
+
+                  # FEMA_COST_STATIC: count cost once per disaster number
+                  if dn not in cost_seen:
+                      cost_seen.add(dn)
+                      c = costs.get(dn, 0.0)
+                      cost_by_year[year]  += c
+                      cost_by_type[itype] += c
+                      cost_by_state[state] += c
+
+          # Build FEMA_STATIC
+          all_types  = collections.defaultdict(int)
+          all_states = collections.defaultdict(int)
+          fema_static_years = {}
+          for year, data in sorted(decl_years.items()):
+              fema_static_years[str(year)] = {
+                  'c': data['c'],
+                  't': dict(data['t']),
+                  's': dict(data['s']),
+              }
+              for t, c in data['t'].items(): all_types[t]  += c
+              for s, c in data['s'].items(): all_states[s] += c
+
+          fema_static = {
+              'years':  fema_static_years,
+              'types':  dict(all_types),
+              'states': dict(all_states),
+          }
+
+          # Build FEMA_COST_STATIC
+          fema_cost_static = {
+              'byYear':  [{'year': y, 'totalCost': round(c)}
+                          for y, c in sorted(cost_by_year.items())],
+              'byType':  [{'type': t, 'totalCost': round(c)}
+                          for t, c in sorted(cost_by_type.items(), key=lambda x: x[1], reverse=True)[:15]],
+              'byState': [{'state': s, 'totalCost': round(c)}
+                          for s, c in sorted(cost_by_state.items(), key=lambda x: x[1], reverse=True)[:10]],
+          }
+
+          # Build FEMA_TOTAL_AID (sum of all costs, 2000-present)
+          total_aid = int(sum(costs.get(dn, 0) for dn in cost_seen))
+
+          print(f"FEMA_TOTAL_AID:    ${total_aid/1e9:.1f}B")
+          print(f"FEMA_STATIC years: {len(fema_static_years)}")
+          print(f"FEMA_COST years:   {len(fema_cost_static['byYear'])}")
+
+          # ── Patch docs/index.html ───────────────────────────────────────────
+          with open('docs/index.html', 'r', encoding='utf-8') as f:
+              html = f.read()
+
+          html = re.sub(
+              r'const FEMA_TOTAL_AID = \d+;',
+              f'const FEMA_TOTAL_AID = {total_aid};',
+              html,
+          )
+          html = re.sub(
+              r'const FEMA_STATIC = \{[^\n]*\};',
+              'const FEMA_STATIC = ' + json.dumps(fema_static, separators=(',', ':')) + ';',
+              html,
+          )
+          html = re.sub(
+              r'const FEMA_COST_STATIC = \{[^\n]*\};',
+              'const FEMA_COST_STATIC = ' + json.dumps(fema_cost_static, separators=(',', ':')) + ';',
+              html,
+          )
+
+          with open('docs/index.html', 'w', encoding='utf-8') as f:
+              f.write(html)
+
+          print("docs/index.html updated")
+          EOF
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          if git diff --cached --quiet; then
+            echo "No change in static data — skipping commit"
+          else
+            git commit -m "chore: refresh static FEMA data (biweekly update)"
+            git push
+          fi
