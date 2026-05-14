@@ -824,6 +824,29 @@ let chartCostStatesInst = null;
 let activeState         = null;
 let activeYearRange     = null;
 
+// Shared DOM tooltip — renders outside chart panels so overflow:hidden can't clip it
+const _ttip = document.createElement('div');
+_ttip.style.cssText = 'position:fixed;background:#1e293b;color:#e2e8f0;padding:5px 10px;border-radius:6px;font-size:11px;pointer-events:none;display:none;z-index:9999;border:1px solid #334155;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)';
+document.body.appendChild(_ttip);
+
+function makeDomTooltip(fmt) {
+  return function({ chart, tooltip }) {
+    if (tooltip.opacity === 0) { _ttip.style.display = 'none'; return; }
+    const pt = tooltip.dataPoints?.[0];
+    if (!pt) return;
+    _ttip.textContent = pt.label + ': ' + fmt(pt.raw);
+    const r = chart.canvas.getBoundingClientRect();
+    let x = r.left + tooltip.caretX + 14;
+    let y = r.top  + tooltip.caretY - 14;
+    // keep within viewport
+    if (x + 200 > window.innerWidth)  x = r.left + tooltip.caretX - 214;
+    if (y < 0) y = r.top + tooltip.caretY + 8;
+    _ttip.style.left = x + 'px';
+    _ttip.style.top  = y + 'px';
+    _ttip.style.display = 'block';
+  };
+}
+
 // ── Static FEMA declaration data (extracted from OpenFEMA CSV, 2000-present) ──
 // Total federal disaster aid 2000-present extracted from FemaWebDisasterSummaries CSV
 const FEMA_DATA_DATE = "2026-05-14";
@@ -1259,7 +1282,7 @@ function renderTypeChart(typeMap) {
       layout: { padding: { top: 24, bottom: 24 } },
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
-        tooltip: { callbacks: { title: () => [], label: ctx => ' ' + ctx.label + ': ' + ctx.raw.toLocaleString() } },
+        tooltip: { enabled: false, external: makeDomTooltip(v => Math.round(v).toLocaleString()) },
       },
     },
   });
@@ -1510,7 +1533,7 @@ function renderCostTypeChart(costByType) {
       layout: { padding: { top: 24, bottom: 24 } },
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
-        tooltip: { callbacks: { title: () => [], label: ctx => ' ' + ctx.label + ': $' + ctx.raw.toFixed(1) + 'B' } },
+        tooltip: { enabled: false, external: makeDomTooltip(v => '$' + v.toFixed(1) + 'B') },
       },
     },
   });
