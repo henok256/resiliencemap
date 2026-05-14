@@ -1517,6 +1517,14 @@ function formatDollars(n) {
   if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
   return '$' + n.toFixed(0);
 }
+// v is already in billions — format adaptively so small states don't show $0.0B
+function fmtB(v) { return formatDollars(v * 1e9); }
+// axis tick: same but shorter for tight spaces
+function fmtBTick(v) {
+  if (v >= 1)    return '$' + v.toFixed(0) + 'B';
+  if (v >= 0.001) return '$' + (v * 1000).toFixed(0) + 'M';
+  return '$0';
+}
 
 async function loadDisasterCosts(yearData) {
   // FEMA FemaWebDisasterSummaries API is degraded — render from embedded static data
@@ -1560,11 +1568,11 @@ function renderCostYearChart(costByYear) {
       layout: { padding: { bottom: 2 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { title: (items) => years[items[0].dataIndex], label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
+        tooltip: { callbacks: { title: (items) => years[items[0].dataIndex], label: ctx => fmtB(ctx.raw) } },
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0, minRotation: 0 } },
-        y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: v => '$' + v + 'B' } },
+        y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: fmtBTick } },
       },
     },
   });
@@ -1587,7 +1595,7 @@ function renderCostTypeChart(costByType) {
       layout: { padding: { top: 24, bottom: 24 } },
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 }, padding: 6 } },
-        tooltip: { enabled: false, external: makeDomTooltip(v => '$' + v.toFixed(1) + 'B') },
+        tooltip: { enabled: false, external: makeDomTooltip(fmtB) },
       },
     },
   });
@@ -1618,10 +1626,10 @@ function renderCostStatesChart(costByState, highlightState = null) {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toFixed(1) + 'B' } },
+        tooltip: { callbacks: { label: ctx => fmtB(ctx.raw) } },
       },
       scales: {
-        x: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: v => '$' + v + 'B' } },
+        x: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 }, callback: fmtBTick } },
         y: { grid: { display: false }, ticks: { font: { size: 10 } } },
       },
     },
