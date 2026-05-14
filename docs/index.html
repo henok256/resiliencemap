@@ -403,6 +403,36 @@
       pointer-events: none;
     }
     .toast.show { opacity: 1; }
+
+    /* State card */
+    .state-card {
+      background: linear-gradient(135deg,rgba(59,130,246,.08),rgba(6,182,212,.08));
+      border: 1px solid rgba(59,130,246,.25);
+      border-radius: 8px; padding: 10px; margin-top: 8px;
+    }
+    .state-card-name {
+      font-size: 14px; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 8px; display: flex; align-items: center;
+      justify-content: space-between;
+    }
+    .reset-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: 5px; padding: 2px 7px; font-size: 10px;
+      color: var(--text-muted); cursor: pointer; font-family: inherit;
+      transition: border-color .2s, color .2s;
+    }
+    .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .state-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+    .state-stat {
+      background: var(--bg-card); border-radius: 6px; padding: 7px;
+      border: 1px solid var(--border-subtle); text-align: center;
+    }
+    .state-stat-val { font-size: 16px; font-weight: 700; color: #3b82f6; line-height: 1; }
+    .state-stat-lbl { font-size: 9px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; }
+    .filter-notice {
+      font-size: 10px; color: var(--accent); margin-top: 6px;
+      text-align: center; letter-spacing: .02em;
+    }
   </style>
 </head>
 <body>
@@ -434,6 +464,27 @@
         <span class="search-icon">🔍</span>
         <input type="text" class="search-input" id="searchInput" placeholder="Search state or city..." autocomplete="off">
         <div class="search-results" id="searchResults"></div>
+      </div>
+      <div id="stateCard" style="display:none" class="state-card">
+        <div class="state-card-name">
+          <span id="stateCardName">—</span>
+          <button class="reset-btn" onclick="resetToNational()">✕ National</button>
+        </div>
+        <div class="state-stats">
+          <div class="state-stat">
+            <div class="state-stat-val" id="stateTotalDecl">—</div>
+            <div class="state-stat-lbl">Declarations</div>
+          </div>
+          <div class="state-stat">
+            <div class="state-stat-val" id="statePeakYear" style="font-size:13px">—</div>
+            <div class="state-stat-lbl">Peak Year</div>
+          </div>
+          <div class="state-stat">
+            <div class="state-stat-val" id="stateRecentDecl">—</div>
+            <div class="state-stat-lbl">Last 5 Yrs</div>
+          </div>
+        </div>
+        <div class="filter-notice">Charts filtered to this state</div>
       </div>
       <div class="section-title">Live Overview</div>
       <div class="stats">
@@ -547,7 +598,7 @@
     </div>
     <div class="chart-panel">
       <div class="chart-box">
-        <div class="chart-title">Disaster Declarations by Year (FEMA)</div>
+        <div class="chart-title" id="chartTitle1">Disaster Declarations by Year (FEMA)</div>
         <div class="chart-wrap">
           <div class="skeleton" id="skelYearly">
             <div class="skeleton-bar" style="height:30%"></div>
@@ -683,6 +734,11 @@ const affectedStates = new Set();
 // Store data globally for export
 let _costData = [];
 
+// Chart instances (needed to destroy/rebuild on state filter)
+let chartYearlyInst = null;
+let chartStatesInst = null;
+let activeState = null;
+
 // ── Static FEMA declaration data (extracted from OpenFEMA CSV, 2000-present) ──
 // Total federal disaster aid 2000-present extracted from FemaWebDisasterSummaries CSV
 const FEMA_TOTAL_AID = 372594467398;
@@ -784,8 +840,7 @@ searchResults.addEventListener('click', function(e) {
   const item = e.target.closest('.search-result-item');
   if (!item) return;
   const abbr = item.dataset.abbr;
-  const coords = STATE_COORDS[abbr];
-  if (coords) map.setView([coords[0], coords[1]], coords[2], { animate: true, duration: 1 });
+  selectState(abbr);
   searchInput.value = item.textContent;
   searchResults.classList.remove('visible');
 });
@@ -1036,10 +1091,11 @@ function fetchYearCounts() {
 
 function renderYearlyChart(yearData) {
   hideSkeleton('skelYearly');
+  if (chartYearlyInst) { chartYearlyInst.destroy(); chartYearlyInst = null; }
   const years = yearData.map(d => d.year);
   const counts = yearData.map(d => d.count);
 
-  new Chart(document.getElementById('chartYearly'), {
+  chartYearlyInst = new Chart(document.getElementById('chartYearly'), {
     type: 'bar',
     data: {
       labels: years,
@@ -1080,15 +1136,17 @@ function renderTypeChart(typeMap) {
   });
 }
 
-function renderStatesChart(stateMap) {
+function renderStatesChart(stateMap, highlightState = null) {
   hideSkeleton('skelStates');
+  if (chartStatesInst) { chartStatesInst.destroy(); chartStatesInst = null; }
   const sorted = Object.entries(stateMap).sort((a,b) => b[1] - a[1]).slice(0, 10);
+  const colors = sorted.map(([st]) => st === highlightState ? '#3b82f6' : '#8b5cf6');
 
-  new Chart(document.getElementById('chartStates'), {
+  chartStatesInst = new Chart(document.getElementById('chartStates'), {
     type: 'bar',
     data: {
       labels: sorted.map(s => s[0]),
-      datasets: [{ label: 'Declarations', data: sorted.map(s => s[1]), backgroundColor: '#8b5cf6', borderRadius: 3, barPercentage: 0.7 }],
+      datasets: [{ label: 'Declarations', data: sorted.map(s => s[1]), backgroundColor: colors, borderRadius: 3, barPercentage: 0.7 }],
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -1101,13 +1159,68 @@ function renderStatesChart(stateMap) {
   });
 }
 
+// ── State filter ──
+function getStateYearData(stateAbbr) {
+  return Object.entries(FEMA_STATIC.years)
+    .map(([yr, d]) => ({ year: parseInt(yr), count: d.s[stateAbbr] || 0 }))
+    .filter(d => d.count > 0)
+    .sort((a, b) => a.year - b.year);
+}
+
+function selectState(abbr) {
+  activeState = abbr;
+  history.replaceState(null, '', '#state=' + abbr);
+
+  const coords = STATE_COORDS[abbr];
+  if (coords) map.setView([coords[0], coords[1]], coords[2], { animate: true, duration: 1 });
+
+  const stateYearData = getStateYearData(abbr);
+  document.getElementById('chartTitle1').textContent = `Declarations by Year — ${abbr}`;
+  renderYearlyChart(stateYearData);
+  renderStatesChart(FEMA_STATIC.states, abbr);
+
+  const stateName = Object.entries(US_STATES).find(([,a]) => a === abbr)?.[0] || abbr;
+  const total = FEMA_STATIC.states[abbr] || 0;
+  const peak = stateYearData.reduce((a, b) => (a.count >= b.count ? a : b), { year: '—', count: 0 });
+  const currentYear = new Date().getFullYear();
+  const recent = stateYearData.filter(d => d.year >= currentYear - 5).reduce((s, d) => s + d.count, 0);
+  document.getElementById('stateCardName').textContent = stateName;
+  document.getElementById('stateTotalDecl').textContent = total.toLocaleString();
+  document.getElementById('statePeakYear').textContent = peak.year;
+  document.getElementById('stateRecentDecl').textContent = recent;
+  document.getElementById('stateCard').style.display = 'block';
+
+  affectedStates.clear();
+  affectedStates.add(abbr);
+  updatePopulationExposure();
+}
+
+function resetToNational() {
+  activeState = null;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  document.getElementById('chartTitle1').textContent = 'Disaster Declarations by Year (FEMA)';
+  renderYearlyChart(fetchYearCounts());
+  renderStatesChart(FEMA_STATIC.states);
+  document.getElementById('stateCard').style.display = 'none';
+  searchInput.value = '';
+}
+
 async function loadDisasterTimeline() {
   const yearData = fetchYearCounts();
   if (!yearData.length) return;
   document.getElementById('totalCost').textContent = formatDollars(FEMA_TOTAL_AID);
-  renderYearlyChart(yearData);
   renderTypeChart(FEMA_STATIC.types);
-  renderStatesChart(FEMA_STATIC.states);
+
+  if (window._restoreState && FEMA_STATIC.states[window._restoreState]) {
+    renderYearlyChart(getStateYearData(window._restoreState));
+    renderStatesChart(FEMA_STATIC.states, window._restoreState);
+    selectState(window._restoreState);
+    window._restoreState = null;
+  } else {
+    renderYearlyChart(yearData);
+    renderStatesChart(FEMA_STATIC.states);
+  }
+
   loadDisasterCosts(yearData);
 }
 
@@ -1416,6 +1529,18 @@ setInterval(async () => {
   await Promise.all([loadAlerts(), loadQuakes(), loadWildfires(), loadInfrastructure()]);
   document.getElementById('updatedAt').textContent = 'Updated ' + new Date().toLocaleTimeString();
 }, 5 * 60 * 1000);
+
+// Restore state from shareable URL hash (e.g. #state=TX)
+(function() {
+  const m = location.hash.match(/#state=([A-Z]{2})/);
+  if (m && STATE_COORDS[m[1]]) {
+    const abbr = m[1];
+    const name = Object.entries(US_STATES).find(([,a]) => a === abbr)?.[0] || abbr;
+    searchInput.value = name + ' (' + abbr + ')';
+    // Defer until charts are loaded
+    window._restoreState = abbr;
+  }
+})();
 
 init();
 </script>
