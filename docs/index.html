@@ -455,6 +455,68 @@
     .yr-btn:hover { border-color: var(--accent); color: var(--accent); }
     .yr-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+    /* Methodology modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); z-index: 9100;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px; max-width: 600px; width: 100%;
+      max-height: 80vh; overflow-y: auto; position: relative;
+      transition: background .3s, border-color .3s;
+    }
+    .modal-title {
+      font-size: 15px; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 14px; padding-right: 24px;
+    }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px;
+      background: none; border: 1px solid var(--border);
+      border-radius: 5px; padding: 3px 8px; font-size: 12px;
+      color: var(--text-muted); cursor: pointer; transition: border-color .2s;
+    }
+    .modal-close:hover { border-color: var(--accent); color: var(--accent); }
+    .method-section { margin-bottom: 14px; }
+    .method-section h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin-bottom: 5px; }
+    .method-section p { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* Comparison panel */
+    .compare-panel {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--bg-secondary); border-top: 2px solid var(--accent);
+      z-index: 600; box-shadow: 0 -8px 32px rgba(0,0,0,.4);
+      transition: background .3s;
+    }
+    .compare-panel.open { display: block; }
+    .compare-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; border-bottom: 1px solid var(--border);
+    }
+    .compare-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0; padding: 10px 14px; overflow-x: auto;
+    }
+    .compare-col {
+      padding: 8px; border-right: 1px solid var(--border);
+    }
+    .compare-col:last-child { border-right: none; }
+    .compare-col-title { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+    .compare-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid var(--border-subtle); }
+    .compare-label { color: var(--text-muted); }
+    .compare-value { color: var(--text-primary); font-weight: 600; }
+    .compare-better { color: #22c55e; }
+    .compare-worse { color: #ef4444; }
+
+    /* SVI scale legend */
+    .svi-bar {
+      height: 7px; border-radius: 4px;
+      background: linear-gradient(to right,#3b82f6,#eab308,#ef4444);
+      margin: 7px 0;
+    }
+
     /* Hamburger (mobile only) */
     .menu-btn {
       display: none; background: none; border: 1px solid var(--border);
@@ -558,6 +620,11 @@
         <div style="text-align:center;margin-top:5px;font-size:11px;color:var(--text-muted)">
           Fed. aid: <span id="stateTotalAid" style="color:#22c55e;font-weight:700">—</span>
         </div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text-muted)">
+          <span>SVI: <span id="stateSVI" style="color:var(--text-primary);font-weight:600">—</span></span>
+          <span>Hospitals: <span id="stateHospitals" style="color:var(--text-primary);font-weight:600">—</span></span>
+        </div>
+        <button class="export-btn" style="width:100%;margin-top:6px;font-size:11px" onclick="openComparison()">⚖️ Compare with another state</button>
       </div>
       <div class="section-title">Live Overview</div>
       <div class="stats">
@@ -651,6 +718,16 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="layer-row">
+        <div class="layer-left">
+          <div class="dot" style="background:linear-gradient(135deg,#3b82f6,#ef4444);opacity:0.9"></div>
+          <span class="layer-name">Social Vulnerability</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="sviToggle" onchange="toggleSVIMode(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
     <div class="section">
@@ -681,6 +758,8 @@
       <button class="export-btn" onclick="exportChartsPNG()">📸 Export PNG</button>
       <button class="export-btn" onclick="copySummary()">📋 Copy Summary</button>
       <button class="export-btn" onclick="copyLink()">🔗 Copy Link</button>
+      <button class="export-btn" onclick="downloadReport()" id="reportBtn" style="border-color:rgba(59,130,246,.4);color:#3b82f6">📄 Download Report</button>
+      <button class="export-btn" onclick="openMethodology()" style="margin-left:auto;border-color:rgba(148,163,184,.3)">❓ Methodology</button>
     </div>
     <div class="chart-panel">
       <div class="chart-box">
@@ -801,6 +880,52 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- Methodology Modal -->
+<div class="modal-overlay" id="methodologyModal" onclick="if(event.target===this)closeMethodology()">
+  <div class="modal-box">
+    <span class="modal-title">How ResilienceMap Works</span>
+    <button class="modal-close" onclick="closeMethodology()">✕ Close</button>
+    <div class="method-section">
+      <h3>Data Sources</h3>
+      <p>Disaster declarations and federal aid totals come from <strong>FEMA OpenFEMA</strong> (DisasterDeclarationsSummaries + FemaWebDisasterSummaries). Live hazards pull from <strong>NOAA NWS</strong> (storm alerts), <strong>USGS FDSN</strong> (earthquakes ≥ M2.5, 30 days), <strong>NIFC</strong> (active wildfire perimeters), and <strong>HIFLD</strong> (hospital facilities). Social Vulnerability Index values are <strong>CDC/ATSDR SVI</strong> 2022 state aggregates, where 0 = lowest vulnerability and 1 = highest.</p>
+    </div>
+    <div class="method-section">
+      <h3>Federal Aid Methodology</h3>
+      <p>Total federal aid sums four FEMA programs per disaster: <em>Individual Household Program (IHP)</em>, <em>Housing Assistance (HA)</em>, <em>Public Assistance (PA)</em>, and <em>Hazard Mitigation Grant Program (HMGP)</em>. For multi-state disasters (e.g. COVID-19 Biological declarations issued to all 57 territories), cost is <strong>proportionally split</strong> across all states sharing that disaster number — preventing any single state from being credited with the full national cost.</p>
+    </div>
+    <div class="method-section">
+      <h3>Trend Forecast</h3>
+      <p>The dashed purple line on the Declarations by Year chart shows a <strong>5-year linear regression forecast</strong> based on all available historical data for the selected scope. It uses ordinary least-squares regression on annual declaration counts and projects forward. Forecasts are indicative only and do not account for climate nonlinearity.</p>
+    </div>
+    <div class="method-section">
+      <h3>Social Vulnerability Overlay</h3>
+      <p>Enabling the <em>Social Vulnerability</em> map layer recolors states from blue (low SVI) through yellow to red (high SVI). High SVI states have greater concentrations of low-income residents, minorities, households without vehicles, and people in crowded housing — factors that amplify disaster impact. Cross-referencing SVI with disaster frequency reveals <strong>compounded risk</strong>: states like Louisiana and Mississippi face both high disaster exposure and high social vulnerability.</p>
+    </div>
+    <div class="method-section">
+      <h3>Disaster Heatmap</h3>
+      <p>Map shading uses a <strong>square-root scale</strong> of federal declaration counts per state since 2000. Square-root scaling prevents outlier states (TX, FL) from dominating while still conveying relative risk magnitude.</p>
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:14px">
+      Built by Henok Mengesha · Data refreshed biweekly via GitHub Actions ·
+      <a href="https://github.com/henok256/resiliencemap" target="_blank" style="color:var(--accent)">View source</a>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison Panel -->
+<div class="compare-panel" id="comparePanel">
+  <div class="compare-header">
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)">State Comparison</span>
+    <select id="compareSelect" style="flex:1;max-width:220px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:11px;color:var(--text-primary);cursor:pointer" onchange="renderComparison(activeState, this.value)">
+      <option value="">Select a state to compare…</option>
+    </select>
+    <button class="export-btn" style="margin-left:auto" onclick="closeComparison()">✕ Close</button>
+  </div>
+  <div class="compare-grid" id="compareContent">
+    <div style="grid-column:1/-1;text-align:center;font-size:11px;color:var(--text-muted);padding:10px">Choose a state above to compare with the selected state.</div>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────
 //  ResilienceMap — GitHub Pages Live Dashboard
@@ -824,6 +949,24 @@ const STATE_POP = {
   OR:4233358,PA:12961683,RI:1095962,SC:5373555,SD:919318,TN:7126489,
   TX:30503301,UT:3417734,VT:647464,VA:8683619,WA:7812880,WV:1770071,
   WI:5910955,WY:584057,DC:678972
+};
+
+// CDC/ATSDR Social Vulnerability Index — state averages (2022); 0=low, 1=high vulnerability
+const SVI_BY_STATE = {
+  AL:0.62,AK:0.51,AZ:0.49,AR:0.63,CA:0.45,CO:0.37,CT:0.32,DE:0.44,FL:0.50,GA:0.55,
+  HI:0.35,ID:0.44,IL:0.47,IN:0.50,IA:0.42,KS:0.46,KY:0.58,LA:0.67,ME:0.43,MD:0.38,
+  MA:0.33,MI:0.53,MN:0.37,MS:0.72,MO:0.53,MT:0.52,NE:0.43,NV:0.47,NH:0.31,NJ:0.41,
+  NM:0.62,NY:0.47,NC:0.51,ND:0.44,OH:0.53,OK:0.57,OR:0.42,PA:0.50,RI:0.39,SC:0.54,
+  SD:0.53,TN:0.57,TX:0.56,UT:0.38,VT:0.33,VA:0.40,WA:0.38,WV:0.64,WI:0.43,WY:0.44,DC:0.55
+};
+
+// Hospital counts per state (HIFLD, ~7,000 tracked facilities)
+const HOSPITAL_COUNT_BY_STATE = {
+  AL:103,AK:18,AZ:80,AR:77,CA:348,CO:73,CT:31,DE:8,FL:213,GA:148,
+  HI:22,ID:39,IL:189,IN:117,IA:116,KS:118,KY:96,LA:104,ME:36,MD:65,
+  MA:73,MI:133,MN:132,MS:86,MO:114,MT:54,NE:88,NV:31,NH:26,NJ:71,
+  NM:37,NY:188,NC:120,ND:47,OH:170,OK:96,OR:59,PA:172,RI:11,SC:63,
+  SD:52,TN:123,TX:413,UT:42,VT:15,VA:91,WA:89,WV:50,WI:124,WY:23,DC:10
 };
 
 // Track affected states for population exposure
@@ -1250,6 +1393,18 @@ function hideSkeleton(id) {
   if (el) el.style.display = 'none';
 }
 
+function linearForecast(xArr, yArr, steps) {
+  const n = xArr.length;
+  if (n < 3) return Array(steps).fill(null);
+  const xMean = xArr.reduce((a, b) => a + b) / n;
+  const yMean = yArr.reduce((a, b) => a + b) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) { num += (xArr[i] - xMean) * (yArr[i] - yMean); den += (xArr[i] - xMean) ** 2; }
+  const slope = den ? num / den : 0;
+  const intercept = yMean - slope * xMean;
+  return Array.from({ length: steps }, (_, i) => Math.max(0, Math.round(slope * (xArr[n - 1] + i + 1) + intercept)));
+}
+
 function fetchYearCounts() {
   return Object.entries(FEMA_STATIC.years)
     .map(([yr, d]) => ({ year: parseInt(yr), count: d.c, t: d.t, s: d.s }))
@@ -1259,25 +1414,51 @@ function fetchYearCounts() {
 function renderYearlyChart(yearData) {
   hideSkeleton('skelYearly');
   if (chartYearlyInst) { chartYearlyInst.destroy(); chartYearlyInst = null; }
-  const years = yearData.map(d => d.year);
+  const years  = yearData.map(d => d.year);
   const counts = yearData.map(d => d.count);
+
+  // Add 5-year forecast when viewing full range with enough data
+  const showForecast = !activeYearRange && years.length >= 5;
+  const futureYears  = showForecast ? Array.from({ length: 5 }, (_, i) => years[years.length - 1] + i + 1) : [];
+  const forecastVals = showForecast ? linearForecast(years, counts, 5) : [];
+  const allYears     = [...years, ...futureYears];
+  const allLabels    = allYears.map(y => "'" + String(y).slice(2));
+
+  const datasets = [{
+    label: 'Declarations',
+    data: [...counts, ...Array(futureYears.length).fill(null)],
+    backgroundColor: counts.map(c => c > 100 ? '#ef4444' : c > 60 ? '#f97316' : '#3b82f6'),
+    borderRadius: 3,
+    barPercentage: 0.8,
+  }];
+  if (showForecast) {
+    // Line starts at last real value and continues through forecast
+    const lineData = [...Array(years.length - 1).fill(null), counts[counts.length - 1], ...forecastVals];
+    datasets.push({
+      label: 'Forecast (linear)',
+      type: 'line',
+      data: lineData,
+      borderColor: 'rgba(139,92,246,0.85)',
+      borderDash: [5, 4],
+      borderWidth: 2,
+      pointRadius: [0, 0, 0, 0, 0, 3],  // only show points on forecast dots
+      pointBackgroundColor: '#8b5cf6',
+      fill: false,
+      tension: 0.3,
+      order: 0,
+    });
+  }
 
   chartYearlyInst = new Chart(document.getElementById('chartYearly'), {
     type: 'bar',
-    data: {
-      labels: years.map(y => "'" + String(y).slice(2)),
-      datasets: [{
-        label: 'Declarations',
-        data: counts,
-        backgroundColor: counts.map(c => c > 100 ? '#ef4444' : c > 60 ? '#f97316' : '#3b82f6'),
-        borderRadius: 3,
-        barPercentage: 0.8,
-      }],
-    },
+    data: { labels: allLabels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       layout: { padding: { bottom: 2 } },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { title: (items) => years[items[0].dataIndex] } } },
+      plugins: {
+        legend: { display: showForecast, labels: { boxWidth: 12, font: { size: 9 }, padding: 8, filter: i => i.text !== 'Declarations' } },
+        tooltip: { callbacks: { title: items => allYears[items[0].dataIndex] } },
+      },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0, minRotation: 0 } },
         y: { grid: { color: '#1e293b' }, ticks: { font: { size: 9 } } },
@@ -1398,6 +1579,17 @@ function selectState(abbr) {
   document.getElementById('statePeakYear').textContent = peak.year;
   document.getElementById('stateRecentDecl').textContent = recent5;
   document.getElementById('stateTopType').textContent = topType ? topType[0] : '—';
+
+  // SVI score
+  const svi = SVI_BY_STATE[abbr];
+  const sviLabel = svi != null ? svi.toFixed(2) + (svi >= 0.6 ? ' (High)' : svi >= 0.4 ? ' (Mod)' : ' (Low)') : '—';
+  document.getElementById('stateSVI').textContent = sviLabel;
+  document.getElementById('stateSVI').style.color = svi >= 0.6 ? '#ef4444' : svi >= 0.4 ? '#eab308' : '#22c55e';
+
+  // Hospital count
+  const hospitals = HOSPITAL_COUNT_BY_STATE[abbr];
+  document.getElementById('stateHospitals').textContent = hospitals ? hospitals.toLocaleString() : '—';
+
   document.getElementById('stateCard').style.display = 'block';
 
   // Trend badge
@@ -1757,6 +1949,192 @@ function copyLink() {
   });
 }
 
+// ── Download Report ──
+function downloadReport() {
+  if (!activeState) { showToast('Select a state first, then download report'); return; }
+  const abbr  = activeState;
+  const name  = Object.entries(US_STATES).find(([,a]) => a === abbr)?.[0] || abbr;
+  const total = document.getElementById('stateTotalDecl').textContent;
+  const peak  = document.getElementById('statePeakYear').textContent;
+  const recent = document.getElementById('stateRecentDecl').textContent;
+  const aid   = document.getElementById('stateTotalAid').textContent;
+  const trend = document.getElementById('stateTrendBadge').textContent;
+  const topType = document.getElementById('stateTopType').textContent;
+  const svi   = SVI_BY_STATE[abbr];
+  const hospitals = HOSPITAL_COUNT_BY_STATE[abbr] || '—';
+  const pop   = (STATE_POP[abbr] || 0).toLocaleString();
+
+  const charts = {};
+  [['chartYearly','Declarations by Year'],['chartByType','Disasters by Type'],['chartStates','Top Counties'],
+   ['chartCostYear','Spending by Year'],['chartCostType','Spending by Category'],['chartCostStates','Costliest States']
+  ].forEach(([id, title]) => {
+    const c = document.getElementById(id);
+    if (c && c.width > 0) charts[title] = c.toDataURL('image/png');
+  });
+
+  const chartGrid = Object.entries(charts).map(([title, src]) =>
+    `<div style="break-inside:avoid"><p style="font-size:10px;color:#64748b;margin:0 0 3px;font-weight:600;text-transform:uppercase">${title}</p><img src="${src}" style="width:100%;border:1px solid #e2e8f0;border-radius:6px" /></div>`
+  ).join('');
+
+  const sviColor = svi >= 0.6 ? '#ef4444' : svi >= 0.4 ? '#eab308' : '#22c55e';
+  const sviLabel = svi != null ? svi.toFixed(2) + (svi >= 0.6 ? ' — High Vulnerability' : svi >= 0.4 ? ' — Moderate Vulnerability' : ' — Low Vulnerability') : '—';
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>ResilienceMap — ${name} Disaster Risk Report</title>
+<style>
+  body{font-family:-apple-system,sans-serif;background:#fff;color:#1e293b;margin:32px;font-size:13px}
+  h1{color:#1e40af;border-bottom:2px solid #1e40af;padding-bottom:8px;margin-bottom:4px}
+  h2{color:#334155;margin:18px 0 8px;font-size:14px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+  .meta{font-size:11px;color:#64748b;margin-bottom:16px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+  .kpi{border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center}
+  .kpi-val{font-size:22px;font-weight:700;color:#1e40af}
+  .kpi-lbl{font-size:10px;color:#64748b;margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+  th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+  th{background:#f8fafc;font-weight:600;color:#334155}
+  .footer{margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px}
+  @media print{body{margin:16px}.no-print{display:none}}
+</style></head><body>
+<button class="no-print" onclick="window.print()" style="position:fixed;top:12px;right:12px;background:#1e40af;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px">🖨️ Print / Save PDF</button>
+<h1>ResilienceMap — ${name} (${abbr}) Disaster Risk Report</h1>
+<div class="meta">Generated: ${new Date().toLocaleString()} &nbsp;·&nbsp; Data as of ${FEMA_DATA_DATE} &nbsp;·&nbsp; Source: FEMA OpenFEMA, USGS, NOAA, CDC/ATSDR SVI</div>
+
+<h2>Key Performance Indicators</h2>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-val">${total}</div><div class="kpi-lbl">Federal Declarations (2000–Present)</div></div>
+  <div class="kpi"><div class="kpi-val">${peak}</div><div class="kpi-lbl">Peak Year</div></div>
+  <div class="kpi"><div class="kpi-val">${recent}</div><div class="kpi-lbl">Declarations — Last 5 Years</div></div>
+  <div class="kpi"><div class="kpi-val" style="color:#22c55e">${aid}</div><div class="kpi-lbl">Total Federal Aid</div></div>
+  <div class="kpi"><div class="kpi-val">${topType}</div><div class="kpi-lbl">Primary Hazard Type</div></div>
+  <div class="kpi"><div class="kpi-val" style="color:${sviColor}">${svi != null ? svi.toFixed(2) : '—'}</div><div class="kpi-lbl">Social Vulnerability Index (SVI)</div></div>
+</div>
+
+<h2>State Profile</h2>
+<table>
+  <tr><th>Attribute</th><th>Value</th><th>Notes</th></tr>
+  <tr><td>Population (2023)</td><td>${pop}</td><td>U.S. Census Bureau estimate</td></tr>
+  <tr><td>Federal Aid / Capita</td><td>${aid !== '—' ? (() => { const ps = FEMA_COST_PER_STATE[abbr]; const tot = ps ? ps.byYear.reduce((s,d)=>s+d.c,0) : 0; const popN = STATE_POP[abbr]||1; return formatDollars(tot/popN); })() : '—'}</td><td>Total aid divided by 2023 population</td></tr>
+  <tr><td>Disaster Trend (5yr vs prior 5yr)</td><td>${trend || 'Stable'}</td><td>Based on FEMA declaration count</td></tr>
+  <tr><td>Social Vulnerability Index</td><td>${sviLabel}</td><td>CDC/ATSDR SVI 2022 (0=low, 1=high)</td></tr>
+  <tr><td>Tracked Hospitals</td><td>${hospitals}</td><td>HIFLD critical infrastructure</td></tr>
+</table>
+
+<h2>Analytics Charts</h2>
+<div class="chart-grid">${chartGrid}</div>
+
+<div class="footer">
+  ResilienceMap · Open-source US Disaster Risk Intelligence ·
+  <a href="https://henok256.github.io/resiliencemap/">henok256.github.io/resiliencemap</a><br/>
+  Data: FEMA OpenFEMA · USGS FDSN · NOAA NWS · NIFC · HIFLD · CDC/ATSDR SVI · US Census
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Pop-up blocked — allow pop-ups for this site'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ── State Comparison ──
+function openComparison() {
+  if (!activeState) { showToast('Select a state first'); return; }
+  const panel = document.getElementById('comparePanel');
+  const sel = document.getElementById('compareSelect');
+  // Populate state options if not done yet
+  if (sel.options.length <= 1) {
+    Object.entries(US_STATES).sort().forEach(([name, abbr]) => {
+      if (abbr === activeState) return;
+      const opt = document.createElement('option');
+      opt.value = abbr; opt.textContent = name + ' (' + abbr + ')';
+      sel.appendChild(opt);
+    });
+  } else {
+    // Rebuild to exclude current state
+    while (sel.options.length > 1) sel.remove(1);
+    Object.entries(US_STATES).sort().forEach(([name, abbr]) => {
+      if (abbr === activeState) return;
+      const opt = document.createElement('option');
+      opt.value = abbr; opt.textContent = name + ' (' + abbr + ')';
+      sel.appendChild(opt);
+    });
+  }
+  sel.value = '';
+  document.getElementById('compareContent').innerHTML = '<div style="grid-column:1/-1;text-align:center;font-size:11px;color:var(--text-muted);padding:10px">Choose a state above to compare.</div>';
+  panel.classList.add('open');
+}
+
+function closeComparison() {
+  document.getElementById('comparePanel').classList.remove('open');
+}
+
+function renderComparison(abbr1, abbr2) {
+  if (!abbr1 || !abbr2) return;
+  const name1 = Object.entries(US_STATES).find(([,a]) => a === abbr1)?.[0] || abbr1;
+  const name2 = Object.entries(US_STATES).find(([,a]) => a === abbr2)?.[0] || abbr2;
+
+  function stateMetrics(abbr) {
+    const name = Object.entries(US_STATES).find(([,a]) => a === abbr)?.[0] || abbr;
+    const total = FEMA_STATIC.states[abbr] || 0;
+    const yrData = Object.entries(FEMA_STATIC.years)
+      .map(([y,d]) => ({ year:+y, count:d.s[abbr]||0 })).filter(d=>d.count>0).sort((a,b)=>a.year-b.year);
+    const curY = new Date().getFullYear();
+    const peak = yrData.reduce((a,b) => a.count>=b.count?a:b, {year:'—',count:0});
+    const r5 = yrData.filter(d=>d.year>=curY-5).reduce((s,d)=>s+d.count,0);
+    const topType = Object.entries(FEMA_STATE_TYPES[abbr]||{}).sort((a,b)=>b[1]-a[1])[0];
+    const ps = FEMA_COST_PER_STATE[abbr];
+    const aid = ps ? ps.byYear.reduce((s,d)=>s+d.c,0) : 0;
+    const svi = SVI_BY_STATE[abbr];
+    const pop = STATE_POP[abbr] || 1;
+    const aidPerCap = aid / pop;
+    const hospitals = HOSPITAL_COUNT_BY_STATE[abbr] || 0;
+    return { name, abbr, total, peak:peak.year, r5, topType:topType?topType[0]:'—', aid, svi, aidPerCap, hospitals };
+  }
+
+  const m1 = stateMetrics(abbr1);
+  const m2 = stateMetrics(abbr2);
+
+  function better(v1, v2, lowerIsBetter) {
+    if (v1 === v2) return ['',''];
+    return lowerIsBetter
+      ? (v1 < v2 ? ['compare-better','compare-worse'] : ['compare-worse','compare-better'])
+      : (v1 > v2 ? ['compare-better','compare-worse'] : ['compare-worse','compare-better']);
+  }
+
+  const rows = [
+    ['Declarations (2000–Present)', m1.total.toLocaleString(), m2.total.toLocaleString(), better(m1.total, m2.total, true)],
+    ['Last 5 Years', m1.r5, m2.r5, better(m1.r5, m2.r5, true)],
+    ['Peak Declaration Year', m1.peak, m2.peak, ['','']],
+    ['Primary Hazard', m1.topType, m2.topType, ['','']],
+    ['Total Federal Aid', formatDollars(m1.aid), formatDollars(m2.aid), ['','']],
+    ['Fed. Aid per Capita', formatDollars(m1.aidPerCap), formatDollars(m2.aidPerCap), ['','']],
+    ['Social Vulnerability (SVI)', m1.svi != null ? m1.svi.toFixed(2) : '—', m2.svi != null ? m2.svi.toFixed(2) : '—', better(m1.svi||0, m2.svi||0, true)],
+    ['Tracked Hospitals', m1.hospitals, m2.hospitals, better(m1.hospitals, m2.hospitals, false)],
+    ['Population (2023)', (STATE_POP[abbr1]||0).toLocaleString(), (STATE_POP[abbr2]||0).toLocaleString(), ['','']],
+  ];
+
+  const makeCol = (m, rows, colIdx) => `
+    <div class="compare-col">
+      <div class="compare-col-title">${m.name} (${m.abbr})</div>
+      ${rows.map(([label, v1, v2, cls]) => {
+        const v = colIdx===0 ? v1 : v2;
+        const c = colIdx===0 ? cls[0] : cls[1];
+        return `<div class="compare-row"><span class="compare-label">${label}</span><span class="compare-value ${c}">${v}</span></div>`;
+      }).join('')}
+    </div>`;
+
+  document.getElementById('compareContent').innerHTML = makeCol(m1, rows, 0) + makeCol(m2, rows, 1);
+}
+
+// ── Methodology Modal ──
+function openMethodology() {
+  document.getElementById('methodologyModal').classList.add('open');
+}
+function closeMethodology() {
+  document.getElementById('methodologyModal').classList.remove('open');
+}
+
 // ── Mobile sidebar ──
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
@@ -1792,9 +2170,47 @@ function setYearRange(n, btn) {
   }
 }
 
-// ── State Choropleth (declaration density) ──
-let choroLayer = null;
-let choroGeoJSON = null;
+// ── State Choropleth (declaration density / SVI) ──
+let choroLayer    = null;
+let choroGeoJSON  = null;
+let choroplethMode = 'disasters'; // 'disasters' | 'svi'
+
+function sviColor(svi) {
+  // Blue → yellow → red for 0→0.5→1
+  const t = Math.max(0, Math.min(1, svi));
+  const r = Math.round(239 * t + 59  * (1 - t));
+  const g = Math.round(68  * t + 130 * (1 - t));
+  const b = Math.round(68  * t + 246 * (1 - t));
+  return `rgb(${r},${g},${b})`;
+}
+
+function updateChoroplethStyle() {
+  if (!choroLayer) return;
+  const maxCount = Math.max(...Object.values(FEMA_STATIC.states));
+  choroLayer.eachLayer(function(layer) {
+    const fips = String(layer.feature.id).padStart(2, '0');
+    const abbr = FIPS_TO_STATE[fips];
+    let fillColor = '#1e293b';
+    if (abbr) {
+      if (choroplethMode === 'svi') {
+        fillColor = SVI_BY_STATE[abbr] != null ? sviColor(SVI_BY_STATE[abbr]) : '#334155';
+      } else {
+        fillColor = choroplethColor(FEMA_STATIC.states[abbr] || 0, maxCount);
+      }
+    }
+    layer.setStyle({ fillColor, fillOpacity: 0.6, color: '#1e293b', weight: 0.8 });
+  });
+}
+
+function toggleSVIMode(on) {
+  choroplethMode = on ? 'svi' : 'disasters';
+  if (on) {
+    // Make sure choropleth is visible
+    if (choroLayer) { choroLayer.addTo(map); choroLayer.bringToBack(); }
+    document.getElementById('choroToggle').checked = true;
+  }
+  updateChoroplethStyle();
+}
 
 function choroplethColor(count, max) {
   const t = Math.sqrt(count / max); // sqrt scale to avoid dominance by outliers
@@ -1862,8 +2278,14 @@ async function loadChoropleth() {
         layer.on('mouseover', function(e) {
           layer.setStyle({ weight: 2, color: '#94a3b8', fillOpacity: 0.75 });
           if (abbr) {
-            const count = FEMA_STATIC.states[abbr] || 0;
-            _ttip.textContent = abbr + ': ' + count.toLocaleString() + ' declarations';
+            if (choroplethMode === 'svi') {
+              const sv = SVI_BY_STATE[abbr];
+              const lbl = sv != null ? sv.toFixed(2) + (sv >= 0.6 ? ' (High Vuln.)' : sv >= 0.4 ? ' (Moderate)' : ' (Low)') : 'N/A';
+              _ttip.textContent = abbr + ' SVI: ' + lbl;
+            } else {
+              const count = FEMA_STATIC.states[abbr] || 0;
+              _ttip.textContent = abbr + ': ' + count.toLocaleString() + ' declarations';
+            }
             _ttip.style.display = 'block';
           }
         });
@@ -1872,7 +2294,12 @@ async function loadChoropleth() {
           _ttip.style.top  = (e.originalEvent.clientY - 14) + 'px';
         });
         layer.on('mouseout', function() {
-          choroLayer.resetStyle(layer);
+          if (choroplethMode === 'svi' && abbr) {
+            const sv = SVI_BY_STATE[abbr];
+            layer.setStyle({ fillColor: sv != null ? sviColor(sv) : '#334155', fillOpacity: 0.6, color: '#1e293b', weight: 0.8 });
+          } else {
+            choroLayer.resetStyle(layer);
+          }
           _ttip.style.display = 'none';
         });
       },
