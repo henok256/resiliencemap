@@ -94,7 +94,7 @@ Before ResilienceMap, accessing multi-hazard census-tract risk scores required:
 
 - **Public REST API** — `/api/v1/risk/county/{fips}`, `/api/v1/risk/tract/{geoid}`, `/api/v1/hazards/geojson`, `/api/v1/alerts/active`
 - **Zero-friction dashboard** — Leaflet.js map with live hazard overlays, no installation required
-- **Composite risk scoring** — Flood (35%), Seismic (25%), Storm (20%), Social Vulnerability (20%) weighted methodology documented in `methodology.md`
+- **Composite risk scoring** — Flood (30%), Seismic (20%), Storm (20%), Wildfire (20%), Social Vulnerability (10%) weighted methodology documented in `methodology.md`
 - **Open infrastructure** — MIT license, Docker Compose deployment, GitHub Actions automation; any municipality can self-host
 - **Real-time feeds** — USGS earthquakes, NOAA alerts, and NIFC wildfires refresh every 5 minutes
 

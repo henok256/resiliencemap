@@ -25,6 +25,7 @@ and known limitations.
 | Flood risk | FEMA | National Flood Hazard Layer (NFHL) — S_FLD_HAZ_AR | Annually |
 | Seismic risk | USGS | FDSN Earthquake Event Service | Real-time |
 | Storm exposure | NOAA NWS | Weather Alert API (CAP/ATOM) | Hourly |
+| Wildfire risk | NIFC WFIGS | Interagency Fire Perimeters | Daily |
 | Social vulnerability | CDC/ATSDR | Social Vulnerability Index (SVI) | Every 2 years |
 | Tract boundaries | US Census | TIGER/Line Shapefiles | Annually |
 
@@ -34,7 +35,7 @@ All datasets are in the public domain and freely accessible without licensing re
 
 ## Score Components
 
-### 1. Flood Risk Score (weight: 35%)
+### 1. Flood Risk Score (weight: 30%)
 
 **Methodology:** For each census tract, we compute the fraction of its land area that intersects FEMA-designated Special Flood Hazard Areas (SFHAs). SFHAs are areas with a ≥1% annual chance of flooding (commonly referred to as the "100-year floodplain").
 
@@ -51,7 +52,7 @@ flood_score = ST_Area(tract ∩ SFHA) / ST_Area(tract)
 
 ---
 
-### 2. Seismic Risk Score (weight: 25%)
+### 2. Seismic Risk Score (weight: 20%)
 
 **Methodology:** For each tract centroid, we compute a magnitude-weighted proximity score for all earthquakes within 500 km in the past 365 days:
 
@@ -66,7 +67,7 @@ Squaring the magnitude reflects the exponential energy release relationship (Gut
 
 ---
 
-### 3. Storm Exposure Score (weight: 25%)
+### 3. Storm Exposure Score (weight: 20%)
 
 **Methodology:** For each active NOAA NWS warning or watch whose polygon intersects a tract:
 
@@ -81,7 +82,26 @@ The denominator (4.0) represents simultaneous severe alerts from four different 
 
 ---
 
-### 4. Social Vulnerability Score (weight: 15%)
+### 4. Wildfire Risk Score (weight: 20%)
+
+**Methodology:** For each tract, we compute a proximity-and-acreage-weighted score from NIFC wildfire perimeters within 100 km in the past 365 days:
+
+```
+fire_contribution = acres_burned × (1 - percent_contained/100)
+                    × (5.0 if tract overlaps perimeter else 1.0)
+                    / max(distance_km, 1)
+
+raw_wildfire = Σ fire_contributions
+wildfire_score = min(raw_wildfire / 5000.0, 1.0)
+```
+
+The overlap multiplier (5×) reflects that direct tract exposure to a fire perimeter is categorically more severe than proximity. The normalization constant (5000.0) is calibrated so a large uncontained fire (~10,000 acres at 10 km) saturates to 1.0.
+
+**Rationale:** Wildfire is the fastest-growing disaster category in the US by acreage and declared disaster count. NIFC WFIGS provides daily-updated interagency fire perimeters. The acreage-containment-distance formula is consistent with community wildfire exposure models used in USFS planning.
+
+---
+
+### 5. Social Vulnerability Score (weight: 10%)
 
 **Methodology:** The CDC/ATSDR Social Vulnerability Index (SVI) for each tract is used directly as the component score. SVI is a 0–1 composite of:
 - Socioeconomic status (income, poverty, employment)
@@ -98,13 +118,13 @@ The denominator (4.0) represents simultaneous severe alerts from four different 
 The weighted composite is:
 
 ```
-composite = 0.35 × flood + 0.25 × seismic + 0.25 × storm + 0.15 × svi
+composite = 0.30 × flood + 0.20 × seismic + 0.20 × storm + 0.20 × wildfire + 0.10 × svi
 ```
 
 **Weight justification:**
-- Flood (35%) is the most consistently costly and geographically pervasive US hazard
-- Seismic and Storm (25% each) are regionally dominant and data-rich
-- SVI (15%) modifies physical risk without overriding it — a vulnerability modifier
+- Flood (30%) is the most consistently costly and geographically pervasive US hazard
+- Seismic, Storm, and Wildfire (20% each) are regionally dominant and each covered by a real-time federal data source
+- SVI (10%) modifies physical risk without overriding it — a vulnerability amplifier that ensures equity is represented without dominating the score
 
 Weights are configurable and can be adjusted by practitioners for regional contexts.
 
@@ -118,9 +138,11 @@ Weights are configurable and can be adjusted by practitioners for regional conte
 
 3. **Storm score temporality:** Storm alerts expire quickly. The score reflects current exposure, not historical storm climatology. Future work: integrate NOAA storm event historical data.
 
-4. **SVI data lag:** SVI is published on Census years (2010, 2014, 2016, 2018, 2020, 2022). Between releases, vulnerability patterns may shift significantly.
+4. **Wildfire lookback window:** The 365-day window captures recent perimeters but not long-term fire-return-interval risk. Future work: integrate USFS Fire Return Interval Departure (FRID) data.
 
-5. **Model validation:** This scoring model has not been formally validated against observed disaster impacts. Future work: compare composite scores against FEMA disaster declaration data and SHELDUS economic loss data.
+5. **SVI data lag:** SVI is published on Census years (2010, 2014, 2016, 2018, 2020, 2022). Between releases, vulnerability patterns may shift significantly.
+
+6. **Model validation:** This scoring model has not been formally validated against observed disaster impacts. Future work: compare composite scores against FEMA disaster declaration data and SHELDUS economic loss data.
 
 ---
 

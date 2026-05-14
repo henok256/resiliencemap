@@ -5,7 +5,7 @@ Composite Risk Scoring Engine
 Computes a composite disaster risk score (0.0 – 1.0) for each US census tract
 by combining flood, seismic, storm, wildfire, and social vulnerability components.
 
-Scoring weights (tunable via config):
+Scoring weights (must sum to 1.0):
   - Flood risk:               30%  (FEMA SFHA coverage %)
   - Seismic risk:             20%  (USGS magnitude-weighted proximity)
   - Storm exposure:           20%  (NOAA active alert recency & severity)

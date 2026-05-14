@@ -54,7 +54,7 @@ No single tool unified these datasets at the census-tract level with a public AP
 ## Features
 
 - 📡 **Live data** — NOAA storm alerts, USGS earthquakes, NIFC wildfires refresh every 5 minutes
-- 🗺️ **Census-tract risk scoring** — composite score weighted by flood, seismic, storm, and social vulnerability
+- 🗺️ **Census-tract risk scoring** — composite score weighted by flood, seismic, storm, wildfire, and social vulnerability
 - 🔌 **Public REST API** — query risk by county FIPS code, retrieve active alerts, export GeoJSON
 - 📊 **Analytics dashboard** — disaster declarations by year/type/state, federal spending trends
 - 👥 **Population exposure estimator** — live estimate of people in active hazard zones by state
@@ -144,10 +144,11 @@ Documented in full at [`docs/methodology.md`](docs/methodology.md). The composit
 
 | Component | Source | Weight |
 |-----------|--------|--------|
-| Flood risk | FEMA Special Flood Hazard Area (SFHA) coverage % | 35% |
-| Seismic risk | USGS Peak Ground Acceleration (PGA) percentile | 25% |
+| Flood risk | FEMA Special Flood Hazard Area (SFHA) coverage % | 30% |
+| Seismic risk | USGS magnitude-weighted proximity score | 20% |
 | Storm exposure | Active NOAA watches/warnings (30-day window) | 20% |
-| Social vulnerability | CDC/ATSDR Social Vulnerability Index | 20% |
+| Wildfire risk | NIFC perimeter proximity and acreage | 20% |
+| Social vulnerability | CDC/ATSDR Social Vulnerability Index | 10% |
 
 The social vulnerability component ensures the platform highlights not just physical exposure but community capacity to withstand and recover — a dimension consistently identified by FEMA as underrepresented in existing tools.
 
