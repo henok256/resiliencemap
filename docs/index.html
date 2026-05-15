@@ -2232,11 +2232,12 @@ function generateInsights(abbr) {
 
     insights.push(`🏆 Resilience rank #${rank} of ${total} states (score ${score}/100)${qualifier}`);
 
-    const typeData = FEMA_STATE_TYPES[abbr] || {};
-    const topType  = Object.entries(typeData).sort((a, b) => b[1] - a[1])[0];
-    if (topType && m.decl > 0) {
-      const pct = Math.round(topType[1] / m.decl * 100);
-      insights.push(`⚡ ${topType[0]} is the leading hazard — ${pct}% of all ${m.decl} federal declarations`);
+    const typeData  = FEMA_STATE_TYPES[abbr] || {};
+    const typeTotal = Object.values(typeData).reduce((s, v) => s + v, 0);
+    const topType   = Object.entries(typeData).sort((a, b) => b[1] - a[1])[0];
+    if (topType && typeTotal > 0) {
+      const pct = Math.round(topType[1] / typeTotal * 100);
+      insights.push(`⚡ ${topType[0]} is the leading hazard — ${pct}% of all county-level declarations`);
     }
 
     if (m.aidPerCap > 0) {
