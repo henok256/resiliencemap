@@ -759,6 +759,7 @@
       <button class="export-btn" onclick="copySummary()">📋 Copy Summary</button>
       <button class="export-btn" onclick="copyLink()">🔗 Copy Link</button>
       <button class="export-btn" onclick="downloadReport()" id="reportBtn" style="border-color:rgba(59,130,246,.4);color:#3b82f6">📄 Download Report</button>
+      <button class="export-btn" onclick="openRankings()" style="border-color:rgba(234,179,8,.4);color:#eab308">🏆 Resilience Rankings</button>
       <button class="export-btn" onclick="openMethodology()" style="margin-left:auto;border-color:rgba(148,163,184,.3)">❓ Methodology</button>
     </div>
     <div class="chart-panel">
@@ -862,6 +863,12 @@
         </div>
       </div>
     </div>
+    <div style="background:var(--bg-secondary);border-top:1px solid var(--border);padding:6px 14px 8px;flex-shrink:0;transition:background .3s,border-color .3s">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:5px">Key Insights</div>
+      <div id="insightsList" style="display:flex;flex-wrap:wrap;gap:5px">
+        <div style="font-size:11px;color:var(--text-dim);padding:4px 0">Loading insights…</div>
+      </div>
+    </div>
     </div><!-- /analyticsWrap -->
   </div>
 </div>
@@ -879,6 +886,34 @@
   <span>🔬 CDC/ATSDR SVI</span>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- Resilience Rankings Modal -->
+<div class="modal-overlay" id="rankingsModal" onclick="if(event.target===this)closeRankings()">
+  <div class="modal-box" style="max-width:700px">
+    <span class="modal-title">🏆 State Resilience Rankings</span>
+    <button class="modal-close" onclick="closeRankings()">✕ Close</button>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
+      Composite score (0–100) combining disaster frequency per capita (30%), federal aid per capita (35%),
+      social vulnerability index (25%), and 5-year trend (10%). Higher score = more resilient.
+      Click any row to select that state.
+    </p>
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg-secondary);z-index:1">
+          <tr style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:1px solid var(--border)">
+            <th style="padding:5px 8px;text-align:right;font-weight:600">#</th>
+            <th style="padding:5px 8px;text-align:left;font-weight:600">State</th>
+            <th style="padding:5px 8px;text-align:left;font-weight:600;min-width:140px">Score</th>
+            <th style="padding:5px 8px;text-align:right;font-weight:600">Decl/1M</th>
+            <th style="padding:5px 8px;text-align:right;font-weight:600">Aid/Capita</th>
+            <th style="padding:5px 8px;text-align:right;font-weight:600">SVI</th>
+          </tr>
+        </thead>
+        <tbody id="rankingsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- Methodology Modal -->
 <div class="modal-overlay" id="methodologyModal" onclick="if(event.target===this)closeMethodology()">
@@ -1640,6 +1675,7 @@ function selectState(abbr) {
   affectedStates.clear();
   affectedStates.add(abbr);
   updatePopulationExposure();
+  renderInsights();
 }
 
 function resetToNational() {
@@ -1668,6 +1704,7 @@ function resetToNational() {
   renderCostYearChart(costByYear);
   renderCostTypeChart(costByType);
   renderCostStatesChart(costByState);
+  renderInsights();
 }
 
 async function loadDisasterTimeline() {
@@ -1688,6 +1725,7 @@ async function loadDisasterTimeline() {
   }
 
   loadDisasterCosts(yearData);
+  renderInsights();
 }
 
 // ── Population Exposure ──
@@ -2128,6 +2166,160 @@ function renderComparison(abbr1, abbr2) {
 }
 
 // ── Methodology Modal ──
+// ── Composite Resilience Score ──
+function computeResilienceScores() {
+  if (window._resilienceCache) return window._resilienceCache;
+
+  const curY = new Date().getFullYear();
+  const states = Object.keys(STATE_POP);
+
+  // Gather raw metrics
+  const metrics = {};
+  states.forEach(abbr => {
+    const pop  = STATE_POP[abbr] || 1;
+    const decl = FEMA_STATIC.states[abbr] || 0;
+    const ps   = FEMA_COST_PER_STATE[abbr];
+    const totalAid = ps ? ps.byYear.reduce((s, d) => s + d.c, 0) : 0;
+    const svi  = SVI_BY_STATE[abbr] != null ? SVI_BY_STATE[abbr] : 0.5;
+
+    const r5 = Object.entries(FEMA_STATIC.years)
+      .filter(([y]) => +y >= curY - 5)
+      .reduce((s, [, d]) => s + (d.s[abbr] || 0), 0);
+    const p5 = Object.entries(FEMA_STATIC.years)
+      .filter(([y]) => +y >= curY - 10 && +y < curY - 5)
+      .reduce((s, [, d]) => s + (d.s[abbr] || 0), 0);
+    const trendRatio = p5 > 0 ? (r5 - p5) / p5 : 0;
+
+    metrics[abbr] = { decl, totalAid, pop, aidPerCap: totalAid / pop, declPerMil: decl / pop * 1e6, svi, trendRatio, r5, p5 };
+  });
+
+  // Normalize each risk dimension to [0,1] where 1 = highest risk
+  const entries = Object.entries(metrics);
+  function normRange(key) {
+    const vals = entries.map(([, m]) => m[key]);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    return Object.fromEntries(entries.map(([abbr, m]) => [abbr, max > min ? (m[key] - min) / (max - min) : 0]));
+  }
+  const nDecl  = normRange('declPerMil');
+  const nAid   = normRange('aidPerCap');
+  const nSVI   = Object.fromEntries(entries.map(([abbr, m]) => [abbr, m.svi]));
+  const nTrend = normRange('trendRatio');
+
+  const scores = {};
+  states.forEach(abbr => {
+    const risk = 0.30 * nDecl[abbr] + 0.35 * nAid[abbr] + 0.25 * nSVI[abbr] + 0.10 * nTrend[abbr];
+    scores[abbr] = Math.round((1 - risk) * 100);
+  });
+
+  window._resilienceCache = { scores, metrics };
+  return window._resilienceCache;
+}
+
+// ── Key Insights ──
+function generateInsights(abbr) {
+  const { scores, metrics } = computeResilienceScores();
+  const natAvgAid = Object.values(metrics).reduce((s, m) => s + m.aidPerCap, 0) / Object.keys(metrics).length;
+  const natAvgSVI = Object.values(SVI_BY_STATE).reduce((a, b) => a + b, 0) / Object.keys(SVI_BY_STATE).length;
+  const insights  = [];
+
+  if (abbr) {
+    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const rank   = ranked.findIndex(([a]) => a === abbr) + 1;
+    const total  = ranked.length;
+    const m      = metrics[abbr];
+    const score  = scores[abbr];
+    const qualifier = rank <= 10 ? ' — top 10 most resilient' : rank >= total - 9 ? ' — bottom 10 most vulnerable' : '';
+
+    insights.push(`🏆 Resilience rank #${rank} of ${total} states (score ${score}/100)${qualifier}`);
+
+    const typeData = FEMA_STATE_TYPES[abbr] || {};
+    const topType  = Object.entries(typeData).sort((a, b) => b[1] - a[1])[0];
+    if (topType && m.decl > 0) {
+      const pct = Math.round(topType[1] / m.decl * 100);
+      insights.push(`⚡ ${topType[0]} is the leading hazard — ${pct}% of all ${m.decl} federal declarations`);
+    }
+
+    if (m.aidPerCap > 0) {
+      const ratio = m.aidPerCap / natAvgAid;
+      const cmp = ratio > 1.5 ? `${ratio.toFixed(1)}× the national average` : ratio < 0.5 ? `${Math.round((1 - ratio) * 100)}% below the national average` : 'near the national average';
+      insights.push(`💰 Federal aid per capita: ${formatDollars(m.aidPerCap)} — ${cmp} (national avg ${formatDollars(natAvgAid)})`);
+    }
+
+    const svi = SVI_BY_STATE[abbr];
+    if (svi != null) {
+      const sviRank = Object.entries(SVI_BY_STATE).sort((a, b) => b[1] - a[1]).findIndex(([a]) => a === abbr) + 1;
+      const cmp = svi > natAvgSVI + 0.05 ? 'above' : svi < natAvgSVI - 0.05 ? 'below' : 'near';
+      insights.push(`👥 Social vulnerability #${sviRank} nationally (SVI ${svi.toFixed(2)}) — ${cmp} the national avg of ${natAvgSVI.toFixed(2)}`);
+    }
+
+    if (m.p5 > 0) {
+      const pct = Math.round(m.trendRatio * 100);
+      const dir = pct > 5 ? `↑ up ${pct}% — risk is growing` : pct < -5 ? `↓ down ${Math.abs(pct)}% — resilience is improving` : '→ stable';
+      insights.push(`📈 5-year disaster trend: ${dir} vs the prior 5-year period`);
+    }
+  } else {
+    const sortedByDecl    = Object.entries(FEMA_STATIC.states).sort((a, b) => b[1] - a[1]);
+    const sortedByAid     = Object.entries(metrics).sort((a, b) => b[1].totalAid - a[1].totalAid);
+    const sortedBySVI     = Object.entries(SVI_BY_STATE).sort((a, b) => b[1] - a[1]);
+    const sortedByScore   = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const sortedByPerCap  = Object.entries(metrics).sort((a, b) => b[1].declPerMil - a[1].declPerMil);
+
+    insights.push(`📋 ${sortedByDecl[0][0]} leads all states with ${sortedByDecl[0][1].toLocaleString()} federal declarations since 2000`);
+    insights.push(`💰 ${sortedByAid[0][0]} received the most federal aid — ${formatDollars(sortedByAid[0][1].totalAid)} since 2000`);
+    insights.push(`👥 ${sortedBySVI[0][0]} has the highest social vulnerability (SVI ${sortedBySVI[0][1].toFixed(2)}), amplifying disaster impact`);
+    insights.push(`🏆 Most resilient: ${sortedByScore[0][0]} (${sortedByScore[0][1]}/100)  ·  Most vulnerable: ${sortedByScore[sortedByScore.length - 1][0]} (${sortedByScore[sortedByScore.length - 1][1]}/100)`);
+    insights.push(`⚡ ${sortedByPerCap[0][0]} has the highest disaster rate per capita — ${Math.round(sortedByPerCap[0][1].declPerMil)} declarations per million residents`);
+  }
+
+  return insights.slice(0, 5);
+}
+
+function renderInsights() {
+  const panel = document.getElementById('insightsList');
+  if (!panel) return;
+  const insights = generateInsights(activeState);
+  panel.innerHTML = insights.map(text =>
+    `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:6px;padding:5px 10px;font-size:11px;color:var(--text-secondary);line-height:1.45;flex-basis:calc(50% - 3px);min-width:200px">${text}</div>`
+  ).join('');
+}
+
+// ── Resilience Rankings Modal ──
+function openRankings() {
+  const { scores, metrics } = computeResilienceScores();
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
+  document.getElementById('rankingsTableBody').innerHTML = ranked.map(([abbr, score], i) => {
+    const m    = metrics[abbr];
+    const name = Object.entries(US_STATES).find(([, a]) => a === abbr)?.[0] || abbr;
+    const col  = score >= 70 ? '#22c55e' : score >= 50 ? '#eab308' : '#ef4444';
+    const svi  = SVI_BY_STATE[abbr];
+    const hover = "this.style.background='var(--border-subtle)'";
+    const leave = "this.style.background=''";
+    return `<tr onclick="closeRankings();const n=Object.entries(US_STATES).find(([,a])=>a==='${abbr}')?.[0]||'${abbr}';searchInput.value=n+' (${abbr})';selectState('${abbr}')"
+      onmouseenter="${hover}" onmouseleave="${leave}" style="cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border-subtle)">
+      <td style="padding:5px 8px;text-align:right;font-size:10px;color:var(--text-muted)">${i + 1}</td>
+      <td style="padding:5px 8px;font-size:12px;font-weight:600">${name} (${abbr})</td>
+      <td style="padding:5px 8px;min-width:140px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="flex:1;background:var(--border-subtle);border-radius:3px;height:8px">
+            <div style="width:${score}%;background:${col};height:100%;border-radius:3px;transition:width .4s"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${col};min-width:22px;text-align:right">${score}</span>
+        </div>
+      </td>
+      <td style="padding:5px 8px;text-align:right;font-size:10px;color:var(--text-muted)">${Math.round(m.declPerMil)}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:10px;color:var(--text-muted)">${formatDollars(m.aidPerCap)}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:10px;color:var(--text-muted)">${svi != null ? svi.toFixed(2) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('rankingsModal').classList.add('open');
+}
+
+function closeRankings() {
+  document.getElementById('rankingsModal').classList.remove('open');
+}
+
 function openMethodology() {
   document.getElementById('methodologyModal').classList.add('open');
 }
